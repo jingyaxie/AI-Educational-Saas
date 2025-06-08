@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Form, Input, Button, message } from 'antd';
-import axios from './api';
+import axios from '../api';
 
 const Login = () => {
   const [captcha, setCaptcha] = useState({ image_url: '', captcha_key: '' });
