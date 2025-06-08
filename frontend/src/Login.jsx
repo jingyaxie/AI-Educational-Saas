@@ -55,7 +55,7 @@ const Login = () => {
       // 延迟跳转，让用户看到成功提示
       setTimeout(() => {
         localStorage.setItem('token', res.data.access);
-        window.location.href = '/';
+        window.location.href = '/dashboard';
       }, 1000);
     } catch (err) {
       console.log('登录错误详情：', {

@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'users',
+    'dashboard',
     'rest_framework',
     'corsheaders',
     'captcha',
@@ -197,3 +198,5 @@ CORS_ALLOW_HEADERS = [
 INTERNAL_IPS = [
     '127.0.0.1',
 ]
+
+LOGIN_REDIRECT_URL = '/dashboard/'

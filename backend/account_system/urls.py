@@ -18,11 +18,13 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from users.views import dashboard
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('users.urls')),
     path('captcha/', include('captcha.urls')),
+    path('dashboard/', dashboard, name='dashboard'),
 ]
 
 # 在开发环境中提供静态文件和媒体文件服务

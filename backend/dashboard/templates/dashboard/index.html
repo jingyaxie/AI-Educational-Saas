@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>智能教务系统 - 首页</title>
+    <style>
+        body { background: #f5f5f5; font-family: '微软雅黑', Arial, sans-serif; }
+        .header { background: #5a7d1a; color: #fff; padding: 20px; }
+        .logout-btn { float: right; background: #fff; color: #5a7d1a; border: 1px solid #5a7d1a; padding: 5px 15px; border-radius: 4px; cursor: pointer; }
+        .sidebar { width: 200px; background: #f0f3e8; float: left; height: 100vh; padding-top: 30px; }
+        .main { margin-left: 220px; padding: 40px; }
+        .stats-box { background: #fff; border: 2px solid #3b6ed6; border-radius: 8px; padding: 40px; width: 600px; margin: 0 auto; }
+        .stats-row { display: flex; justify-content: space-between; margin-bottom: 30px; }
+        .stats-item { text-align: center; flex: 1; }
+        .stats-item:not(:last-child) { border-right: 1px solid #eee; }
+        .stats-value { font-size: 2.5em; font-weight: bold; }
+        .stats-label { color: #888; margin-top: 8px; }
+        .welcome { float: right; margin-right: 20px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <span style="font-size: 1.5em; font-weight: bold;">智能教务系统</span>
+        <span class="welcome">欢迎您：{{ username }}</span>
+        <form action="{% url 'logout' %}" method="post" style="display:inline;">
+            {% csrf_token %}
+            <button type="submit" class="logout-btn">退出登录</button>
+        </form>
+    </div>
+    <div class="sidebar">
+        <div style="font-weight:bold; margin-bottom:20px;">首页</div>
+        <div>云空间</div>
+        <div style="margin-left:20px;">文档列表</div>
+        <div style="margin-left:20px;">空间管理</div>
+        <div>知识库</div>
+        <div style="margin-left:20px;">知识库管理</div>
+        <div>智能体</div>
+        <div style="margin-left:20px;">智能体管理</div>
+        <div>用户管理</div>
+        <div style="margin-left:20px;">会员列表</div>
+        <div style="margin-left:20px;">用户组管理</div>
+        <div>设置</div>
+        <div style="margin-left:20px;">token统计</div>
+        <div style="margin-left:20px;">API接口管理</div>
+    </div>
+    <div class="main">
+        <div class="stats-box">
+            <div class="stats-row">
+                <div class="stats-item">
+                    <div class="stats-value">{{ student_count }}人</div>
+                    <div class="stats-label">学生</div>
+                </div>
+                <div class="stats-item">
+                    <div class="stats-value">{{ graduate_count }}人</div>
+                    <div class="stats-label">毕业</div>
+                </div>
+            </div>
+            <div class="stats-row">
+                <div class="stats-item">
+                    <div class="stats-value">{{ token_usage }}B</div>
+                    <div class="stats-label">token用量</div>
+                </div>
+                <div class="stats-item">
+                    <div class="stats-value">{{ knowledge_count }}个</div>
+                    <div class="stats-label">知识库</div>
+                </div>
+            </div>
+            <div class="stats-row">
+                <div class="stats-item" style="flex:2;">
+                    <div class="stats-value">{{ cloud_space_count }}个</div>
+                    <div class="stats-label">云空间</div>
+                </div>
+            </div>
+        </div>
+        <div style="margin-top:30px; color:#888;">
+            简单交互说明：<br>
+            1. 全站的统计性数据，不用实时，每天同步一次即可。
+        </div>
+    </div>
+</body>
+</html> 

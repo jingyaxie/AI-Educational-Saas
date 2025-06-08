@@ -91,3 +91,15 @@ class SetRoleView(APIView):
             return Response({'msg': '角色更新成功'})
         except User.DoesNotExist:
             return Response({'error': '用户不存在'}, status=status.HTTP_404_NOT_FOUND)
+
+@login_required
+def dashboard(request):
+    context = {
+        'username': request.user.username,
+        'student_count': 78,
+        'graduate_count': 32,
+        'token_usage': 109887,
+        'knowledge_count': 998,
+        'cloud_space_count': 876987,
+    }
+    return render(request, 'dashboard.html', context)
