@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, UserGroup, Agent, ModelApi, TokenUsage, KnowledgeFile, KnowledgeBase
+from .models import User, UserGroup, Agent, ModelApi, TokenUsage, KnowledgeFile, KnowledgeBase, SpaceMember, Space, SpaceDocument
 from django.db import models
 
 class UserGroupSerializer(serializers.ModelSerializer):
@@ -48,4 +48,22 @@ class KnowledgeBaseSerializer(serializers.ModelSerializer):
     files_count = serializers.IntegerField(source='files.count', read_only=True)
     class Meta:
         model = KnowledgeBase
-        fields = ['id', 'name', 'type', 'created', 'files_count'] 
+        fields = ['id', 'name', 'type', 'created', 'files_count']
+
+class SpaceMemberSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source='user.username', read_only=True)
+    class Meta:
+        model = SpaceMember
+        fields = ['id', 'user', 'username', 'role', 'joined']
+
+class SpaceSerializer(serializers.ModelSerializer):
+    members_count = serializers.IntegerField(source='members.count', read_only=True)
+    doc_count = serializers.IntegerField(source='documents.count', read_only=True)
+    class Meta:
+        model = Space
+        fields = ['id', 'name', 'created', 'members_count', 'doc_count']
+
+class SpaceDocumentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SpaceDocument
+        fields = ['id', 'name', 'file', 'size', 'created'] 

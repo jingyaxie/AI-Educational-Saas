@@ -3,8 +3,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
 from django.contrib.auth import authenticate, login
-from .models import User, UserGroup, Agent, ModelApi, TokenUsage, KnowledgeBase
-from .serializers import UserSerializer, UserGroupSerializer, AgentSerializer, ModelApiSerializer, TokenUsageSerializer, KnowledgeBaseSerializer
+from .models import User, UserGroup, Agent, ModelApi, TokenUsage, KnowledgeBase, Space, SpaceMember, SpaceDocument
+from .serializers import UserSerializer, UserGroupSerializer, AgentSerializer, ModelApiSerializer, TokenUsageSerializer, KnowledgeBaseSerializer, SpaceSerializer, SpaceMemberSerializer, SpaceDocumentSerializer
 from django.contrib.auth.decorators import login_required
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -20,6 +20,7 @@ import logging
 import requests
 from django.conf import settings
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.parsers import MultiPartParser, FormParser
 
 logger = logging.getLogger(__name__)
 
@@ -288,3 +289,51 @@ class KnowledgeBaseRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIVi
     serializer_class = KnowledgeBaseSerializer
     permission_classes = [IsAuthenticated]
     lookup_field = 'id'
+
+class SpaceListCreateView(generics.ListCreateAPIView):
+    queryset = Space.objects.all().order_by('-created')
+    serializer_class = SpaceSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['name']
+    ordering_fields = ['created']
+
+class SpaceRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Space.objects.all()
+    serializer_class = SpaceSerializer
+    permission_classes = [IsAuthenticated]
+    lookup_field = 'id'
+
+class SpaceMemberListCreateView(generics.ListCreateAPIView):
+    serializer_class = SpaceMemberSerializer
+    permission_classes = [IsAuthenticated]
+    def get_queryset(self):
+        space_id = self.kwargs['space_id']
+        return SpaceMember.objects.filter(space_id=space_id)
+
+class SpaceMemberRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = SpaceMemberSerializer
+    permission_classes = [IsAuthenticated]
+    lookup_field = 'id'
+    def get_queryset(self):
+        space_id = self.kwargs['space_id']
+        return SpaceMember.objects.filter(space_id=space_id)
+
+class SpaceDocumentListCreateView(generics.ListCreateAPIView):
+    serializer_class = SpaceDocumentSerializer
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+    def get_queryset(self):
+        space_id = self.kwargs['space_id']
+        return SpaceDocument.objects.filter(space_id=space_id)
+    def perform_create(self, serializer):
+        file = self.request.FILES.get('file')
+        size = f'{round(file.size/1024/1024, 2)}MB' if file else ''
+        serializer.save(space_id=self.kwargs['space_id'], size=size)
+
+class SpaceDocumentRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = SpaceDocumentSerializer
+    permission_classes = [IsAuthenticated]
+    lookup_field = 'id'
+    def get_queryset(self):
+        space_id = self.kwargs['space_id']

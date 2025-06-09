@@ -86,3 +86,28 @@ class KnowledgeFile(models.Model):
     created = models.DateTimeField(auto_now_add=True, verbose_name='上传时间')
     def __str__(self):
         return self.filename
+
+class Space(models.Model):
+    name = models.CharField(max_length=128, unique=True, verbose_name='空间名称')
+    created = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    def __str__(self):
+        return self.name
+
+class SpaceMember(models.Model):
+    space = models.ForeignKey(Space, on_delete=models.CASCADE, related_name='members')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='spaces')
+    role = models.CharField(max_length=32, default='member', verbose_name='角色')
+    joined = models.DateTimeField(auto_now_add=True, verbose_name='加入时间')
+    class Meta:
+        unique_together = ('space', 'user')
+    def __str__(self):
+        return f'{self.user} in {self.space} ({self.role})'
+
+class SpaceDocument(models.Model):
+    space = models.ForeignKey(Space, on_delete=models.CASCADE, related_name='documents')
+    name = models.CharField(max_length=256, verbose_name='文档名')
+    file = models.FileField(upload_to='space_docs/')
+    size = models.CharField(max_length=32, verbose_name='文件大小')
+    created = models.DateTimeField(auto_now_add=True, verbose_name='上传时间')
+    def __str__(self):
+        return self.name
