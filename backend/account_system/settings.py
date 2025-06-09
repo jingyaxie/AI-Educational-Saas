@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
 from pathlib import Path
+from datetime import timedelta
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -200,3 +201,10 @@ INTERNAL_IPS = [
 ]
 
 LOGIN_REDIRECT_URL = '/dashboard/'
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=7),      # 访问token有效期7天
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=30),    # 刷新token有效期30天
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+}

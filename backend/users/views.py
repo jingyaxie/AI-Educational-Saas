@@ -3,8 +3,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
 from django.contrib.auth import authenticate, login
-from .models import User
-from .serializers import UserSerializer
+from .models import User, UserGroup
+from .serializers import UserSerializer, UserGroupSerializer
 from django.contrib.auth.decorators import login_required
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -14,6 +14,8 @@ from captcha.models import CaptchaStore
 from captcha.helpers import captcha_image_url
 from rest_framework.permissions import AllowAny
 from django.urls import reverse
+from rest_framework import generics, filters
+from django_filters.rest_framework import DjangoFilterBackend
 # Create your views here.
 
 class CaptchaView(APIView):
@@ -103,3 +105,39 @@ def dashboard(request):
         'cloud_space_count': 876987,
     }
     return render(request, 'dashboard.html', context)
+
+class MemberListView(generics.ListCreateAPIView):
+    queryset = User.objects.all().order_by('-date_joined')
+    serializer_class = UserSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['group', 'role']
+    search_fields = ['username']
+    ordering_fields = ['date_joined', 'valid_until']
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        reg_start = self.request.query_params.get('reg_start')
+        reg_end = self.request.query_params.get('reg_end')
+        if reg_start:
+            queryset = queryset.filter(date_joined__gte=reg_start)
+        if reg_end:
+            queryset = queryset.filter(date_joined__lte=reg_end)
+        return queryset
+
+class MemberDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = [IsAuthenticated]
+    lookup_field = 'id'
+
+class UserGroupListView(generics.ListCreateAPIView):
+    queryset = UserGroup.objects.all().order_by('-created_at')
+    serializer_class = UserGroupSerializer
+    permission_classes = [IsAuthenticated]
+
+class UserGroupDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = UserGroup.objects.all()
+    serializer_class = UserGroupSerializer
+    permission_classes = [IsAuthenticated]
+    lookup_field = 'id'

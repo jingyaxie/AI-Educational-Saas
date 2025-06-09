@@ -9,7 +9,11 @@ axios.defaults.headers.common['Accept'] = 'application/json';
 // 请求拦截器
 axios.interceptors.request.use(
   config => {
-    // 在发送请求之前做些什么
+    // 自动携带token
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers['Authorization'] = 'Bearer ' + token;
+    }
     return config;
   },
   error => {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import HomeStats from '../components/HomeStats';
 import DocumentList from '../features/cloud/DocumentList';
 import SpaceManage from '../features/cloud/SpaceManage';
@@ -8,6 +8,7 @@ import GroupManage from '../features/user/GroupManage';
 import TokenStats from '../features/setting/TokenStats';
 import ApiManage from '../features/setting/ApiManage';
 import KnowledgeManage from '../features/knowledge/KnowledgeManage';
+import axios from '../api';
 
 const menuList = [
   { key: 'home', label: '首页' },
@@ -33,6 +34,13 @@ const menuList = [
 
 const Dashboard = () => {
   const [selectedKey, setSelectedKey] = useState('home');
+  const [userInfo, setUserInfo] = useState({ username: '', real_name: '' });
+
+  useEffect(() => {
+    axios.get('/api/userinfo/')
+      .then(res => setUserInfo(res.data))
+      .catch(() => setUserInfo({ username: localStorage.getItem('username') || '' }));
+  }, []);
 
   // 辅助函数：获取一级菜单的第一个子菜单key
   const getFirstChildKey = (item) => {
@@ -203,10 +211,10 @@ const Dashboard = () => {
   return (
     <div style={{ minHeight: '100vh', background: '#f5f5f5' }}>
       {/* 顶部栏 */}
-      <div style={{ background: '#5a7d1a', color: '#fff', padding: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderRadius: '0 0 16px 16px', boxShadow: '0 2px 8px #e5e5e5' }}>
+      <div style={{ background: '#67891b', color: '#fff', padding: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderRadius: '0 0 16px 16px', boxShadow: '0 2px 8px #e5e5e5' }}>
         <span style={{ fontSize: 24, fontWeight: 'bold' }}>智能教务系统</span>
-        <div>
-          <span style={{ marginRight: 24 }}>欢迎您：{stats.username}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+          <span>欢迎您：{userInfo.real_name || userInfo.username}</span>
           <button onClick={handleLogout} style={{ background: '#fff', color: '#5a7d1a', border: '1px solid #5a7d1a', padding: '6px 18px', borderRadius: 4, cursor: 'pointer', fontWeight: 500 }}>退出登录</button>
         </div>
       </div>
