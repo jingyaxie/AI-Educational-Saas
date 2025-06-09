@@ -3,8 +3,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
 from django.contrib.auth import authenticate, login
-from .models import User, UserGroup, Agent
-from .serializers import UserSerializer, UserGroupSerializer, AgentSerializer
+from .models import User, UserGroup, Agent, ModelApi
+from .serializers import UserSerializer, UserGroupSerializer, AgentSerializer, ModelApiSerializer
 from django.contrib.auth.decorators import login_required
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -17,6 +17,9 @@ from django.urls import reverse
 from rest_framework import generics, filters
 from django_filters.rest_framework import DjangoFilterBackend
 import logging
+import requests
+from django.conf import settings
+from rest_framework.decorators import api_view, permission_classes
 
 logger = logging.getLogger(__name__)
 
@@ -178,3 +181,87 @@ class AgentRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     def delete(self, request, *args, **kwargs):
         logger.info(f'删除智能体: {kwargs.get("id")}')
         return super().delete(request, *args, **kwargs)
+
+class ModelApiListCreateView(generics.ListCreateAPIView):
+    """大模型API列表与创建接口"""
+    queryset = ModelApi.objects.all().order_by('-time')
+    serializer_class = ModelApiSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        logger.info('获取大模型API列表')
+        return super().get(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        logger.info(f'创建大模型API，请求数据: {request.data}')
+        return super().post(request, *args, **kwargs)
+
+class ModelApiRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+    """大模型API详情、更新、删除接口"""
+    queryset = ModelApi.objects.all()
+    serializer_class = ModelApiSerializer
+    permission_classes = [IsAuthenticated]
+    lookup_field = 'id'
+
+    def get(self, request, *args, **kwargs):
+        logger.info(f'获取大模型API详情: {kwargs.get("id")}')
+        return super().get(request, *args, **kwargs)
+
+    def put(self, request, *args, **kwargs):
+        logger.info(f'更新大模型API: {kwargs.get("id")}, 数据: {request.data}')
+        return super().put(request, *args, **kwargs)
+
+    def delete(self, request, *args, **kwargs):
+        logger.info(f'删除大模型API: {kwargs.get("id")}')
+        return super().delete(request, *args, **kwargs)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def refresh_usage(request):
+    """
+    批量刷新所有大模型API的token用量（以OpenAI为例）。
+    需在settings中配置 OPENAI_ORG_ID 和 OPENAI_MANAGE_KEY（有用量查询权限的key）。
+    """
+    from .models import ModelApi
+    import datetime
+    logger.info('开始批量刷新大模型API用量...')
+    results = []
+    for api in ModelApi.objects.all():
+        usage = None
+        if api.model == 'openai':
+            try:
+                # 查询本月用量（单位：美元，token数需换算）
+                org_id = getattr(settings, 'OPENAI_ORG_ID', None)
+                manage_key = getattr(settings, 'OPENAI_MANAGE_KEY', None)
+                if not org_id or not manage_key:
+                    logger.warning('未配置OPENAI_ORG_ID或OPENAI_MANAGE_KEY，无法查询OpenAI用量')
+                    continue
+                now = datetime.datetime.utcnow()
+                start_date = now.replace(day=1).strftime('%Y-%m-%d')
+                end_date = now.strftime('%Y-%m-%d')
+                url = f'https://api.openai.com/v1/dashboard/billing/usage?start_date={start_date}&end_date={end_date}'
+                headers = {
+                    'Authorization': f'Bearer {api.apikey}',
+                    'OpenAI-Organization': org_id
+                }
+                resp = requests.get(url, headers=headers, timeout=10)
+                logger.info(f'OpenAI用量查询响应: {resp.status_code} {resp.text}')
+                if resp.status_code == 200:
+                    data = resp.json()
+                    usage = data.get('total_usage', 0)
+                    # OpenAI返回单位为美分，token数需结合价格换算，这里直接显示美元
+                    api.usage = f"${usage/100:.2f}"
+                    api.save()
+                else:
+                    logger.warning(f'OpenAI用量查询失败: {resp.text}')
+            except Exception as e:
+                logger.error(f'查询OpenAI用量异常: {e}')
+        # 其它大模型可在此扩展
+        results.append({
+            'id': api.id,
+            'model': api.model,
+            'apikey': api.apikey[:8] + '...' if api.apikey else '',
+            'usage': api.usage
+        })
+    logger.info('批量刷新大模型API用量完成')
+    return Response({'results': results}, status=status.HTTP_200_OK)

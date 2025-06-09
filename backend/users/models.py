@@ -43,3 +43,19 @@ class Agent(models.Model):
     def save(self, *args, **kwargs):
         logger.info(f'保存Agent: {self.name}, apikey: {self.apikey}, role: {self.role}')
         super().save(*args, **kwargs)
+
+class ModelApi(models.Model):
+    MODEL_CHOICES = [
+        ('openai', 'OpenAI'),
+        ('deepseek', 'Deepseek'),
+        ('gemini', 'Gemini'),
+        ('qwen', '通义千问'),
+        ('moonshot', 'Moonshot'),
+    ]
+    model = models.CharField(max_length=32, choices=MODEL_CHOICES, verbose_name='大模型')  # 大模型类型
+    apikey = models.CharField(max_length=128, unique=True, verbose_name='API-key')  # API密钥，唯一
+    usage = models.CharField(max_length=64, blank=True, null=True, verbose_name='token用量')  # token用量
+    time = models.DateTimeField(auto_now_add=True, verbose_name='接入时间')  # 接入时间
+
+    def __str__(self):
+        return f'{self.get_model_display()}'

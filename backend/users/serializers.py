@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, UserGroup, Agent
+from .models import User, UserGroup, Agent, ModelApi
 
 class UserGroupSerializer(serializers.ModelSerializer):
     class Meta:
@@ -19,4 +19,10 @@ class AgentSerializer(serializers.ModelSerializer):
     """智能体序列化器，负责Agent对象的序列化与反序列化"""
     class Meta:
         model = Agent
-        fields = ['id', 'name', 'apikey', 'role', 'created'] 
+        fields = ['id', 'name', 'apikey', 'role', 'created']
+
+class ModelApiSerializer(serializers.ModelSerializer):
+    model_display = serializers.CharField(source='get_model_display', read_only=True)
+    class Meta:
+        model = ModelApi
+        fields = ['id', 'model', 'model_display', 'apikey', 'usage', 'time'] 
