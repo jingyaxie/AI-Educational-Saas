@@ -152,8 +152,11 @@ const AgentList = () => {
     <div style={{ background: '#fff', borderRadius: 10, boxShadow: '0 2px 8px #e5e5e5', padding: 32, width: '100%', minHeight: 500 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <h2 style={{ color: '#3b6ed6', margin: 0 }}>智能体列表</h2>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => handleAddEdit()}>创建智能体</Button>
-        <Button icon={<ReloadOutlined />} onClick={fetchAgents} style={{ marginLeft: 12 }}>刷新</Button>
+        <span style={{ flex: 1 }} />
+        <Space>
+          <Button icon={<ReloadOutlined />} onClick={fetchAgents}>刷新</Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => handleAddEdit()}>创建智能体</Button>
+        </Space>
       </div>
       <Table columns={columns} dataSource={agents} rowKey="id" loading={loading} />
       <Modal
