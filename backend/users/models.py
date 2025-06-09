@@ -1,5 +1,8 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Create your models here.
 
@@ -27,3 +30,16 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.username
+
+class Agent(models.Model):
+    name = models.CharField(max_length=64, unique=True, verbose_name='智能体名称')  # 智能体名称，唯一
+    apikey = models.CharField(max_length=128, unique=True, verbose_name='API-key')  # 智能体API密钥，唯一
+    role = models.CharField(max_length=128, verbose_name='可用角色')  # 智能体可用角色，逗号分隔
+    created = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')  # 创建时间
+
+    def __str__(self):
+        return self.name
+
+    def save(self, *args, **kwargs):
+        logger.info(f'保存Agent: {self.name}, apikey: {self.apikey}, role: {self.role}')
+        super().save(*args, **kwargs)

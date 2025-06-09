@@ -3,8 +3,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
 from django.contrib.auth import authenticate, login
-from .models import User, UserGroup
-from .serializers import UserSerializer, UserGroupSerializer
+from .models import User, UserGroup, Agent
+from .serializers import UserSerializer, UserGroupSerializer, AgentSerializer
 from django.contrib.auth.decorators import login_required
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -16,6 +16,10 @@ from rest_framework.permissions import AllowAny
 from django.urls import reverse
 from rest_framework import generics, filters
 from django_filters.rest_framework import DjangoFilterBackend
+import logging
+
+logger = logging.getLogger(__name__)
+
 # Create your views here.
 
 class CaptchaView(APIView):
@@ -141,3 +145,36 @@ class UserGroupDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = UserGroupSerializer
     permission_classes = [IsAuthenticated]
     lookup_field = 'id'
+
+class AgentListCreateView(generics.ListCreateAPIView):
+    """智能体列表与创建接口"""
+    queryset = Agent.objects.all().order_by('-created')
+    serializer_class = AgentSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        logger.info('获取智能体列表')
+        return super().get(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        logger.info(f'创建智能体，请求数据: {request.data}')
+        return super().post(request, *args, **kwargs)
+
+class AgentRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+    """智能体详情、更新、删除接口"""
+    queryset = Agent.objects.all()
+    serializer_class = AgentSerializer
+    permission_classes = [IsAuthenticated]
+    lookup_field = 'id'
+
+    def get(self, request, *args, **kwargs):
+        logger.info(f'获取智能体详情: {kwargs.get("id")}')
+        return super().get(request, *args, **kwargs)
+
+    def put(self, request, *args, **kwargs):
+        logger.info(f'更新智能体: {kwargs.get("id")}, 数据: {request.data}')
+        return super().put(request, *args, **kwargs)
+
+    def delete(self, request, *args, **kwargs):
+        logger.info(f'删除智能体: {kwargs.get("id")}')
+        return super().delete(request, *args, **kwargs)

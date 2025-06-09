@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import LoginView, UserInfoView, SetRoleView, CaptchaView, dashboard, MemberListView, MemberDetailView, UserGroupListView, UserGroupDetailView
+from .views import LoginView, UserInfoView, SetRoleView, CaptchaView, dashboard, MemberListView, MemberDetailView, UserGroupListView, UserGroupDetailView, AgentListCreateView, AgentRetrieveUpdateDestroyView
 
 urlpatterns = [
     path('login/', LoginView.as_view()),
@@ -11,4 +11,6 @@ urlpatterns = [
     path('users/<int:id>/', MemberDetailView.as_view(), name='member-detail'),
     path('users/groups/', UserGroupListView.as_view(), name='group-list'),
     path('users/groups/<int:id>/', UserGroupDetailView.as_view(), name='group-detail'),
+    path('agents/', AgentListCreateView.as_view(), name='agent-list'),
+    path('agents/<int:id>/', AgentRetrieveUpdateDestroyView.as_view(), name='agent-detail'),
 ] 
