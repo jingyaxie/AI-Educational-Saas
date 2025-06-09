@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, UserGroup, Agent, ModelApi, TokenUsage
+from .models import User, UserGroup, Agent, ModelApi, TokenUsage, KnowledgeFile, KnowledgeBase
 from django.db import models
 
 class UserGroupSerializer(serializers.ModelSerializer):
@@ -37,4 +37,15 @@ class TokenUsageSerializer(serializers.ModelSerializer):
     agent_name = serializers.CharField(source='agent.name', read_only=True)
     class Meta:
         model = TokenUsage
-        fields = ['id', 'user', 'username', 'agent', 'agent_name', 'apikey', 'tokens', 'created', 'prompt'] 
+        fields = ['id', 'user', 'username', 'agent', 'agent_name', 'apikey', 'tokens', 'created', 'prompt']
+
+class KnowledgeFileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = KnowledgeFile
+        fields = ['id', 'filename', 'file', 'created']
+
+class KnowledgeBaseSerializer(serializers.ModelSerializer):
+    files_count = serializers.IntegerField(source='files.count', read_only=True)
+    class Meta:
+        model = KnowledgeBase
+        fields = ['id', 'name', 'type', 'created', 'files_count'] 

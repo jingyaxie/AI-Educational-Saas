@@ -3,8 +3,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
 from django.contrib.auth import authenticate, login
-from .models import User, UserGroup, Agent, ModelApi, TokenUsage
-from .serializers import UserSerializer, UserGroupSerializer, AgentSerializer, ModelApiSerializer, TokenUsageSerializer
+from .models import User, UserGroup, Agent, ModelApi, TokenUsage, KnowledgeBase
+from .serializers import UserSerializer, UserGroupSerializer, AgentSerializer, ModelApiSerializer, TokenUsageSerializer, KnowledgeBaseSerializer
 from django.contrib.auth.decorators import login_required
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -274,3 +274,17 @@ class TokenUsageListCreateView(generics.ListCreateAPIView):
     filterset_fields = ['user', 'agent', 'apikey']
     search_fields = ['prompt']
     ordering_fields = ['created', 'tokens']
+
+class KnowledgeBaseListCreateView(generics.ListCreateAPIView):
+    queryset = KnowledgeBase.objects.all().order_by('-created')
+    serializer_class = KnowledgeBaseSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['name']
+    ordering_fields = ['created']
+
+class KnowledgeBaseRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = KnowledgeBase.objects.all()
+    serializer_class = KnowledgeBaseSerializer
+    permission_classes = [IsAuthenticated]
+    lookup_field = 'id'

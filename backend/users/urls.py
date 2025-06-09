@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import LoginView, UserInfoView, SetRoleView, CaptchaView, dashboard, MemberListView, MemberDetailView, UserGroupListView, UserGroupDetailView, AgentListCreateView, AgentRetrieveUpdateDestroyView, ModelApiListCreateView, ModelApiRetrieveUpdateDestroyView, refresh_usage, TokenUsageListCreateView
+from .views import LoginView, UserInfoView, SetRoleView, CaptchaView, dashboard, MemberListView, MemberDetailView, UserGroupListView, UserGroupDetailView, AgentListCreateView, AgentRetrieveUpdateDestroyView, ModelApiListCreateView, ModelApiRetrieveUpdateDestroyView, refresh_usage, TokenUsageListCreateView, KnowledgeBaseListCreateView, KnowledgeBaseRetrieveUpdateDestroyView
 
 urlpatterns = [
     path('login/', LoginView.as_view()),
@@ -17,4 +17,6 @@ urlpatterns = [
     path('modelapis/<int:id>/', ModelApiRetrieveUpdateDestroyView.as_view(), name='modelapi-detail'),
     path('modelapis/refresh_usage/', refresh_usage, name='modelapi-refresh-usage'),
     path('tokenusages/', TokenUsageListCreateView.as_view(), name='tokenusage-list'),
+    path('knowledgebases/', KnowledgeBaseListCreateView.as_view(), name='knowledgebase-list'),
+    path('knowledgebases/<int:id>/', KnowledgeBaseRetrieveUpdateDestroyView.as_view(), name='knowledgebase-detail'),
 ] 

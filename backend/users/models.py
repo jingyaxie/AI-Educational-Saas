@@ -71,3 +71,18 @@ class TokenUsage(models.Model):
 
     def __str__(self):
         return f'{self.user} {self.agent} {self.tokens} tokens @ {self.created}'
+
+class KnowledgeBase(models.Model):
+    name = models.CharField(max_length=128, unique=True, verbose_name='知识库名称')
+    type = models.CharField(max_length=16, choices=[('doc', '文档'), ('xls', '表格')], verbose_name='类型')
+    created = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    def __str__(self):
+        return self.name
+
+class KnowledgeFile(models.Model):
+    kb = models.ForeignKey(KnowledgeBase, on_delete=models.CASCADE, related_name='files')
+    filename = models.CharField(max_length=128, verbose_name='文件名')
+    file = models.FileField(upload_to='knowledge/')
+    created = models.DateTimeField(auto_now_add=True, verbose_name='上传时间')
+    def __str__(self):
+        return self.filename
