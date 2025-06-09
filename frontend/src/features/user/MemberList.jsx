@@ -142,10 +142,16 @@ const MemberList = () => {
       form.setFieldsValue({
         ...record,
         group_id: record.group?.id,
-        valid_until: record.valid_until ? dayjs(record.valid_until) : null
+        valid_until: record.valid_until ? dayjs(record.valid_until) : null,
+        is_active: record.is_active === undefined ? true : record.is_active
       });
     } else {
       form.resetFields();
+      // 设置默认值
+      form.setFieldsValue({
+        is_active: true,
+        role: 'student'
+      });
     }
     setModalVisible(true);
   };
@@ -544,7 +550,6 @@ const MemberList = () => {
           <Form.Item
             name="is_active"
             label="状态"
-            valuePropName="checked"
           >
             <Select>
               <Select.Option value={true}>启用</Select.Option>
