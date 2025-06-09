@@ -1,5 +1,6 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.conf import settings
 import logging
 
 logger = logging.getLogger(__name__)
@@ -59,3 +60,14 @@ class ModelApi(models.Model):
 
     def __str__(self):
         return f'{self.get_model_display()}'
+
+class TokenUsage(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name='用户')
+    agent = models.ForeignKey('Agent', on_delete=models.SET_NULL, null=True, verbose_name='智能体')
+    apikey = models.CharField(max_length=128, verbose_name='API-key')
+    tokens = models.IntegerField(verbose_name='消耗token数')
+    created = models.DateTimeField(auto_now_add=True, verbose_name='调用时间')
+    prompt = models.TextField(blank=True, null=True, verbose_name='请求内容摘要')
+
+    def __str__(self):
+        return f'{self.user} {self.agent} {self.tokens} tokens @ {self.created}'

@@ -3,8 +3,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
 from django.contrib.auth import authenticate, login
-from .models import User, UserGroup, Agent, ModelApi
-from .serializers import UserSerializer, UserGroupSerializer, AgentSerializer, ModelApiSerializer
+from .models import User, UserGroup, Agent, ModelApi, TokenUsage
+from .serializers import UserSerializer, UserGroupSerializer, AgentSerializer, ModelApiSerializer, TokenUsageSerializer
 from django.contrib.auth.decorators import login_required
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -265,3 +265,12 @@ def refresh_usage(request):
         })
     logger.info('批量刷新大模型API用量完成')
     return Response({'results': results}, status=status.HTTP_200_OK)
+
+class TokenUsageListCreateView(generics.ListCreateAPIView):
+    queryset = TokenUsage.objects.all().order_by('-created')
+    serializer_class = TokenUsageSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['user', 'agent', 'apikey']
+    search_fields = ['prompt']
+    ordering_fields = ['created', 'tokens']

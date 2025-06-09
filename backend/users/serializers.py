@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, UserGroup, Agent, ModelApi
+from .models import User, UserGroup, Agent, ModelApi, TokenUsage
 
 class UserGroupSerializer(serializers.ModelSerializer):
     class Meta:
@@ -25,4 +25,11 @@ class ModelApiSerializer(serializers.ModelSerializer):
     model_display = serializers.CharField(source='get_model_display', read_only=True)
     class Meta:
         model = ModelApi
-        fields = ['id', 'model', 'model_display', 'apikey', 'usage', 'time'] 
+        fields = ['id', 'model', 'model_display', 'apikey', 'usage', 'time']
+
+class TokenUsageSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source='user.username', read_only=True)
+    agent_name = serializers.CharField(source='agent.name', read_only=True)
+    class Meta:
+        model = TokenUsage
+        fields = ['id', 'user', 'username', 'agent', 'agent_name', 'apikey', 'tokens', 'created', 'prompt'] 

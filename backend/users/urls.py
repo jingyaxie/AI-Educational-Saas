@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import LoginView, UserInfoView, SetRoleView, CaptchaView, dashboard, MemberListView, MemberDetailView, UserGroupListView, UserGroupDetailView, AgentListCreateView, AgentRetrieveUpdateDestroyView, ModelApiListCreateView, ModelApiRetrieveUpdateDestroyView, refresh_usage
+from .views import LoginView, UserInfoView, SetRoleView, CaptchaView, dashboard, MemberListView, MemberDetailView, UserGroupListView, UserGroupDetailView, AgentListCreateView, AgentRetrieveUpdateDestroyView, ModelApiListCreateView, ModelApiRetrieveUpdateDestroyView, refresh_usage, TokenUsageListCreateView
 
 urlpatterns = [
     path('login/', LoginView.as_view()),
@@ -16,4 +16,5 @@ urlpatterns = [
     path('modelapis/', ModelApiListCreateView.as_view(), name='modelapi-list'),
     path('modelapis/<int:id>/', ModelApiRetrieveUpdateDestroyView.as_view(), name='modelapi-detail'),
     path('modelapis/refresh_usage/', refresh_usage, name='modelapi-refresh-usage'),
+    path('tokenusages/', TokenUsageListCreateView.as_view(), name='tokenusage-list'),
 ] 
