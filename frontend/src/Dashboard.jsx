@@ -7,9 +7,11 @@ import GroupManage from './GroupManage';
 import TokenStats from './TokenStats';
 import ApiManage from './ApiManage';
 import KnowledgeManage from './KnowledgeManage';
+import ChatPanel from './chat/ChatPanel';
 
 const menuList = [
   { key: 'home', label: '首页' },
+  { key: 'chat', label: '大模型对话' },
   { key: 'cloud', label: '云空间', children: [
     { key: 'doc', label: '文档列表' },
     { key: 'space', label: '空间管理' },
@@ -125,6 +127,9 @@ const Dashboard = () => {
 
   // 渲染内容区
   const renderContent = () => {
+    if (selectedKey === 'chat') {
+      return <ChatPanel />;
+    }
     if (selectedKey === 'doc') {
       return <DocumentList />;
     }

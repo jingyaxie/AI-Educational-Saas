@@ -9,11 +9,13 @@ import GroupManage from '../features/user/GroupManage';
 import TokenStats from '../features/setting/TokenStats';
 import ApiManage from '../features/setting/ApiManage';
 import KnowledgeManage from '../features/knowledge/KnowledgeManage';
+import ChatPanel from '../chat/ChatPanel';
 import axios from '../api';
 import { HomeOutlined, UserOutlined } from '@ant-design/icons';
 
 const menuList = [
   { key: 'home', label: '首页' },
+  { key: 'chat', label: '大模型对话' },
   { key: 'cloud', label: '云空间', children: [
     { key: 'doc', label: '文档列表' },
     { key: 'space', label: '空间管理' },
@@ -136,6 +138,9 @@ const Dashboard = () => {
 
   // 渲染内容区
   const renderContent = () => {
+    if (selectedKey === 'chat') {
+      return <ChatPanel />;
+    }
     if (selectedKey === 'doc') {
       return <DocumentList />;
     }
@@ -211,25 +216,11 @@ const Dashboard = () => {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f5f5f5' }}>
-      {/* 顶部栏 */}
-      <div style={{ background: '#67891b', color: '#fff', padding: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderRadius: '0 0 16px 16px', boxShadow: '0 2px 8px #e5e5e5' }}>
-        <span style={{ fontSize: 24, fontWeight: 'bold' }}>智能教务系统</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-          <span>欢迎您：{userInfo.real_name || userInfo.username}</span>
-          <button onClick={handleLogout} style={{ background: '#fff', color: '#5a7d1a', border: '1px solid #5a7d1a', padding: '6px 18px', borderRadius: 4, cursor: 'pointer', fontWeight: 500 }}>退出登录</button>
-        </div>
-      </div>
-      {/* 主体部分 */}
-      <div style={{ display: 'flex' }}>
-        {/* 侧边栏 */}
+    <div style={{ minHeight: '100vh', background: '#f8faf5', display: 'flex', flexDirection: 'column' }}>
+      {/* 顶部栏可选 */}
+      <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
         {renderMenu()}
-        {/* 内容区 */}
-        <div style={{ flex: 1, padding: 40, minWidth: 0, display: 'flex', flexDirection: 'column', height: '100%' }}>
-          <div style={{ flex: 1, width: '100%', height: '100%' }}>
-            {renderContent()}
-          </div>
-        </div>
+        <div style={{ flex: 1, minWidth: 0, minHeight: 0, overflow: 'auto', padding: '24px' }}>{renderContent()}</div>
       </div>
     </div>
   );
