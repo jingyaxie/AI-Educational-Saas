@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import User, UserGroup, Agent, ModelApi, TokenUsage
+from django.db import models
 
 class UserGroupSerializer(serializers.ModelSerializer):
     class Meta:
@@ -23,9 +24,13 @@ class AgentSerializer(serializers.ModelSerializer):
 
 class ModelApiSerializer(serializers.ModelSerializer):
     model_display = serializers.CharField(source='get_model_display', read_only=True)
+    usage = serializers.SerializerMethodField()
     class Meta:
         model = ModelApi
         fields = ['id', 'model', 'model_display', 'apikey', 'usage', 'time']
+    def get_usage(self, obj):
+        from .models import TokenUsage
+        return TokenUsage.objects.filter(apikey=obj.apikey).aggregate(total=models.Sum('tokens'))['total'] or 0
 
 class TokenUsageSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)
