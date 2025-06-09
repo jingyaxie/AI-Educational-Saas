@@ -4,11 +4,13 @@ import DocumentList from '../features/cloud/DocumentList';
 import SpaceManage from '../features/cloud/SpaceManage';
 import AgentList from '../features/agent/AgentList';
 import MemberList from '../features/user/MemberList';
+import GroupList from '../features/user/GroupList';
 import GroupManage from '../features/user/GroupManage';
 import TokenStats from '../features/setting/TokenStats';
 import ApiManage from '../features/setting/ApiManage';
 import KnowledgeManage from '../features/knowledge/KnowledgeManage';
 import axios from '../api';
+import { HomeOutlined, UserOutlined } from '@ant-design/icons';
 
 const menuList = [
   { key: 'home', label: '首页' },
@@ -23,8 +25,8 @@ const menuList = [
     { key: 'agent-mgr', label: '智能体管理' },
   ]},
   { key: 'user', label: '用户管理', children: [
-    { key: 'member', label: '会员列表' },
-    { key: 'group', label: '用户组管理' },
+    { key: 'member-list', label: '会员列表' },
+    { key: 'group-list', label: '用户组管理' },
   ]},
   { key: 'setting', label: '设置', children: [
     { key: 'token', label: 'token统计' },
@@ -143,11 +145,11 @@ const Dashboard = () => {
     if (selectedKey === 'agent-mgr') {
       return <AgentList />;
     }
-    if (selectedKey === 'member') {
+    if (selectedKey === 'member-list') {
       return <MemberList />;
     }
-    if (selectedKey === 'group') {
-      return <GroupManage />;
+    if (selectedKey === 'group-list') {
+      return <GroupList />;
     }
     if (selectedKey === 'token') {
       return <TokenStats />;

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Input, Button, Space, Modal, Form, message, Popconfirm, Select, DatePicker } from 'antd';
-import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Table, Input, Button, Space, Modal, Form, message, Popconfirm, Select, DatePicker, Card, Tag, Tooltip, Badge } from 'antd';
+import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, ExportOutlined, ImportOutlined } from '@ant-design/icons';
 import axios from '../../api';
 import dayjs from 'dayjs';
 
@@ -20,6 +20,9 @@ const MemberList = () => {
   const [groups, setGroups] = useState([]);
   const [dateRange, setDateRange] = useState(null);
   const [error, setError] = useState(null);
+  const [selectedRowKeys, setSelectedRowKeys] = useState([]);
+  const [importModalVisible, setImportModalVisible] = useState(false);
+  const [importLoading, setImportLoading] = useState(false);
 
   // 获取用户组列表
   const fetchGroups = async () => {
@@ -52,7 +55,6 @@ const MemberList = () => {
         search
       };
       
-      // 添加日期范围过滤
       if (dateRange) {
         params.reg_start = dateRange[0].format('YYYY-MM-DD');
         params.reg_end = dateRange[1].format('YYYY-MM-DD');
@@ -64,12 +66,10 @@ const MemberList = () => {
       const response = await axios.get('/api/users/', { params });
       console.log('会员列表响应:', response.data);
       
-      // 检查响应数据是否为数组
       if (Array.isArray(response.data)) {
         setMembers(response.data);
         setTotal(response.data.length);
       } else if (response.data && Array.isArray(response.data.results)) {
-        // 兼容分页格式
         setMembers(response.data.results);
         setTotal(response.data.count);
       } else {
@@ -109,12 +109,6 @@ const MemberList = () => {
   };
 
   useEffect(() => {
-    console.log('组件挂载或依赖项更新，当前状态:', {
-      currentPage,
-      pageSize,
-      searchText,
-      dateRange
-    });
     fetchMembers(currentPage, pageSize, searchText);
     fetchGroups();
   }, [currentPage, pageSize, searchText, dateRange]);
@@ -237,11 +231,90 @@ const MemberList = () => {
     }
   };
 
+  // 处理批量删除
+  const handleBatchDelete = async () => {
+    try {
+      console.log('批量删除会员:', selectedRowKeys);
+      await Promise.all(selectedRowKeys.map(id => axios.delete(`/api/users/${id}/`)));
+      message.success('批量删除成功');
+      setSelectedRowKeys([]);
+      fetchMembers(currentPage, pageSize, searchText);
+    } catch (error) {
+      console.error('批量删除失败:', error);
+      message.error('批量删除失败');
+    }
+  };
+
+  // 处理导出
+  const handleExport = async () => {
+    try {
+      const response = await axios.get('/api/users/export/', {
+        responseType: 'blob'
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `会员列表_${dayjs().format('YYYY-MM-DD')}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error('导出失败:', error);
+      message.error('导出失败');
+    }
+  };
+
+  // 处理导入
+  const handleImport = async (file) => {
+    try {
+      setImportLoading(true);
+      const formData = new FormData();
+      formData.append('file', file);
+      await axios.post('/api/users/import/', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      message.success('导入成功');
+      setImportModalVisible(false);
+      fetchMembers(currentPage, pageSize, searchText);
+    } catch (error) {
+      console.error('导入失败:', error);
+      message.error('导入失败');
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  // 检查会员状态
+  const checkMemberStatus = (validUntil) => {
+    if (!validUntil) return { status: 'default', text: '未设置' };
+    const now = dayjs();
+    const validDate = dayjs(validUntil);
+    if (validDate.isBefore(now)) {
+      return { status: 'error', text: '已过期' };
+    }
+    if (validDate.diff(now, 'day') <= 7) {
+      return { status: 'warning', text: '即将过期' };
+    }
+    return { status: 'success', text: '有效' };
+  };
+
   const columns = [
     {
       title: '用户名',
       dataIndex: 'username',
       key: 'username',
+      render: (text, record) => (
+        <Space>
+          <span>{text}</span>
+          {record.is_active ? (
+            <Badge status="success" text="活跃" />
+          ) : (
+            <Badge status="error" text="禁用" />
+          )}
+        </Space>
+      ),
     },
     {
       title: '邮箱',
@@ -260,24 +333,38 @@ const MemberList = () => {
       key: 'role',
       render: (role) => {
         const roleMap = {
-          student: '学生',
-          teacher: '老师',
-          admin: '教务',
-          sysadmin: '系统管理员'
+          student: { text: '学生', color: 'blue' },
+          teacher: { text: '老师', color: 'green' },
+          admin: { text: '教务', color: 'orange' },
+          sysadmin: { text: '系统管理员', color: 'red' }
         };
-        return roleMap[role] || role;
+        const roleInfo = roleMap[role] || { text: role, color: 'default' };
+        return <Tag color={roleInfo.color}>{roleInfo.text}</Tag>;
       }
     },
     {
       title: 'Token用量',
       dataIndex: 'token_usage',
       key: 'token_usage',
+      render: (usage) => (
+        <Tooltip title={`已使用 ${usage} 个 Token`}>
+          <span>{usage}</span>
+        </Tooltip>
+      ),
     },
     {
       title: '有效期',
       dataIndex: 'valid_until',
       key: 'valid_until',
-      render: (date) => date ? dayjs(date).format('YYYY-MM-DD') : '-',
+      render: (date) => {
+        const status = checkMemberStatus(date);
+        return (
+          <Space>
+            <span>{date ? dayjs(date).format('YYYY-MM-DD') : '-'}</span>
+            <Tag color={status.status}>{status.text}</Tag>
+          </Space>
+        );
+      },
     },
     {
       title: '创建时间',
@@ -312,54 +399,84 @@ const MemberList = () => {
     },
   ];
 
+  const rowSelection = {
+    selectedRowKeys,
+    onChange: (newSelectedRowKeys) => {
+      setSelectedRowKeys(newSelectedRowKeys);
+    },
+  };
+
   return (
     <div style={{ padding: '24px' }}>
-      <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Space>
-          <RangePicker
-            onChange={handleDateRangeChange}
-            value={dateRange}
-            placeholder={['开始日期', '结束日期']}
-          />
-          <Search
-            placeholder="搜索会员"
-            allowClear
-            enterButton={<SearchOutlined />}
-            onSearch={handleSearch}
-            style={{ width: 300 }}
-          />
-        </Space>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={() => handleAddEdit()}
-        >
-          新增会员
-        </Button>
-      </div>
+      <Card>
+        <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Space>
+            <RangePicker
+              onChange={handleDateRangeChange}
+              value={dateRange}
+              placeholder={['开始日期', '结束日期']}
+            />
+            <Search
+              placeholder="搜索会员"
+              allowClear
+              enterButton={<SearchOutlined />}
+              onSearch={handleSearch}
+              style={{ width: 300 }}
+            />
+          </Space>
+          <Space>
+            <Button
+              icon={<ReloadOutlined />}
+              onClick={() => fetchMembers(currentPage, pageSize, searchText)}
+            >
+              刷新
+            </Button>
+            <Button
+              icon={<ExportOutlined />}
+              onClick={handleExport}
+            >
+              导出
+            </Button>
+            <Button
+              icon={<ImportOutlined />}
+              onClick={() => setImportModalVisible(true)}
+            >
+              导入
+            </Button>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => handleAddEdit()}
+            >
+              新增会员
+            </Button>
+          </Space>
+        </div>
 
-      <Table
-        columns={columns}
-        dataSource={members}
-        rowKey="id"
-        loading={loading}
-        pagination={{
-          current: currentPage,
-          pageSize: pageSize,
-          total: total,
-          showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (total) => `共 ${total} 条`,
-        }}
-        onChange={handleTableChange}
-      />
+        <Table
+          columns={columns}
+          dataSource={members}
+          rowKey="id"
+          loading={loading}
+          pagination={{
+            current: currentPage,
+            pageSize: pageSize,
+            total: total,
+            showSizeChanger: true,
+            showQuickJumper: true,
+            showTotal: (total) => `共 ${total} 条`,
+          }}
+          onChange={handleTableChange}
+          rowSelection={rowSelection}
+        />
+      </Card>
 
       <Modal
         title={editingMember ? '编辑会员' : '新增会员'}
         open={modalVisible}
         onOk={handleSubmit}
         onCancel={() => setModalVisible(false)}
-        destroyOnHidden
+        destroyOnClose
       >
         <Form
           form={form}
@@ -424,7 +541,40 @@ const MemberList = () => {
           >
             <DatePicker style={{ width: '100%' }} />
           </Form.Item>
+          <Form.Item
+            name="is_active"
+            label="状态"
+            valuePropName="checked"
+          >
+            <Select>
+              <Select.Option value={true}>启用</Select.Option>
+              <Select.Option value={false}>禁用</Select.Option>
+            </Select>
+          </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        title="导入会员"
+        open={importModalVisible}
+        onCancel={() => setImportModalVisible(false)}
+        footer={null}
+      >
+        <Form.Item
+          label="选择文件"
+          extra="支持 .xlsx 格式"
+        >
+          <Input
+            type="file"
+            accept=".xlsx"
+            onChange={(e) => {
+              const file = e.target.files[0];
+              if (file) {
+                handleImport(file);
+              }
+            }}
+          />
+        </Form.Item>
       </Modal>
     </div>
   );
