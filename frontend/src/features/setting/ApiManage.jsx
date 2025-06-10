@@ -32,6 +32,8 @@ const ApiManage = () => {
       const res = await axios.get('/api/modelapis/');
       console.log('[ApiManage] API列表响应:', res.data);
       setApis(res.data);
+      // 将API列表保存到全局变量，供getModelApiConfig使用
+      window.__apis = res.data;
     } catch (err) {
       console.error('[ApiManage] 获取API列表失败:', err);
       message.error('获取API列表失败');
@@ -192,6 +194,14 @@ const ApiManage = () => {
           <Form.Item name="apikey" label="API-key" rules={[{ required: true, message: '请输入API-key' }]}> 
             <Input allowClear />
           </Form.Item>
+          {/* 新增base_url配置 */}
+          <Form.Item name="base_url" label="Base URL" rules={[{ required: true, message: '请输入Base URL' }]}> 
+            <Input allowClear />
+          </Form.Item>
+          {/* 新增model_name配置 */}
+          <Form.Item name="model_name" label="Model Name" rules={[{ required: true, message: '请输入Model Name' }]}> 
+            <Input allowClear />
+          </Form.Item>
           {/* token用量只读，不可编辑，表单中不显示 */}
         </Form>
       </Modal>
@@ -199,4 +209,19 @@ const ApiManage = () => {
   );
 };
 
-export default ApiManage; 
+export default ApiManage;
+
+// 导出函数，供ChatPanel使用，返回当前已配置的API列表，格式为 { model: { baseURL, apiKey, model } }
+export const getModelApiConfig = () => {
+  const config = {};
+  // 假设apis是当前组件内的状态，这里直接使用全局变量或通过props传入
+  const apis = window.__apis || [];
+  apis.forEach(api => {
+    config[api.model] = {
+      baseURL: api.base_url,
+      apiKey: api.apikey,
+      model: api.model_name || api.model
+    };
+  });
+  return config;
+}; 

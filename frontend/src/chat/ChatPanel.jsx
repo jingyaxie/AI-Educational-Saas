@@ -1,54 +1,108 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button, Input, Select, message, Tooltip } from 'antd';
-import { SendOutlined, PlusOutlined, MenuOutlined, UserOutlined, MessageOutlined, DoubleRightOutlined, DoubleLeftOutlined } from '@ant-design/icons';
+import { SendOutlined, PlusOutlined, MessageOutlined, DoubleRightOutlined, DoubleLeftOutlined } from '@ant-design/icons';
+import { getModelApiConfig } from '../features/setting/ApiManage';
+import axios from '../api';
 
-// 假数据：智能体、模型、知识库列表，后续可通过接口获取
-const agentOptions = [
-  { value: 'default', label: '通用助手' },
-  { value: 'study', label: '学业顾问' },
-  { value: 'career', label: '职业规划' },
-];
-const modelOptions = [
-  { value: 'gpt-4', label: 'GPT-4' },
-  { value: 'deepseek', label: 'Deepseek' },
-  { value: 'gemini', label: 'Gemini' },
-];
 const kbOptions = [
   { value: 'none', label: '无知识库' },
   { value: 'univ', label: '大学库' },
   { value: 'policy', label: '政策库' },
 ];
 
-const fakeHistory = [
-  '大模型知识库技术',
-  '云原生概念解析',
-  '前端无法访问问题',
-  'RagFlow工作流概述',
-  '需求文档转化',
-  '翻译不再提醒',
-  'DFE3EB 转 ARGB 30%',
-  '开源知识库排名',
-  '远程连接家里电脑',
-  '谷歌文档API使用教程',
-  '基于LangChain的知识库',
-  '透明度动画实现',
-  'Curex写动画交互',
-];
+// 生成唯一ID
+const uuid = () => '_' + Math.random().toString(36).slice(2, 10) + Date.now();
+
+const DEFAULT_WELCOME = '您今天在想什么？';
+
+const getDefaultConversation = () => ({
+  id: uuid(),
+  title: '新对话',
+  messages: [ { role: 'system', content: DEFAULT_WELCOME } ],
+});
+
+const LOCAL_KEY = 'ai_chat_conversations_v1';
+const LOCAL_CUR = 'ai_chat_current_id_v1';
 
 const ChatPanel = () => {
-  // 聊天历史
-  const [messages, setMessages] = useState([
-    { role: 'system', content: '您今天在想什么？' }
-  ]);
+  // 多会话数据
+  const [conversations, setConversations] = useState([getDefaultConversation()]);
+  // 当前会话id
+  const [currentId, setCurrentId] = useState(conversations[0].id);
   // 输入内容
   const [input, setInput] = useState('');
-  // 选中的智能体、模型、知识库
-  const [agent, setAgent] = useState('default');
-  const [model, setModel] = useState('gpt-4');
+  // 动态模型选项和选中模型
+  const [modelOptions, setModelOptions] = useState([]);
+  const [model, setModel] = useState('');
+  const [modelApiMap, setModelApiMap] = useState({}); // model值到API对象的映射
   const [kb, setKb] = useState('none');
+  // 侧边栏收起
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   // 是否发送中
   const [sending, setSending] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // 加载本地历史
+  useEffect(() => {
+    const local = localStorage.getItem(LOCAL_KEY);
+    const cur = localStorage.getItem(LOCAL_CUR);
+    if (local) {
+      try {
+        const arr = JSON.parse(local);
+        setConversations(arr.length ? arr : [getDefaultConversation()]);
+        setCurrentId(cur || (arr[0] && arr[0].id) || getDefaultConversation().id);
+      } catch {
+        setConversations([getDefaultConversation()]);
+        setCurrentId(getDefaultConversation().id);
+      }
+    }
+  }, []);
+  // 持久化
+  useEffect(() => {
+    localStorage.setItem(LOCAL_KEY, JSON.stringify(conversations));
+    localStorage.setItem(LOCAL_CUR, currentId);
+  }, [conversations, currentId]);
+
+  // 获取后端已配置模型列表
+  useEffect(() => {
+    async function fetchModels() {
+      try {
+        const res = await axios.get('/api/modelapis/');
+        // 只展示已配置的API，每个API对象包含model, model_display, apikey, base_url, model_name等
+        const opts = res.data.map(api => ({ value: api.model, label: api.model_display || api.model }));
+        setModelOptions(opts);
+        // 默认选中第一个
+        if (opts.length > 0) setModel(opts[0].value);
+        // 建立model到API对象的映射
+        const map = {};
+        res.data.forEach(api => { map[api.model] = api; });
+        setModelApiMap(map);
+      } catch (err) {
+        setModelOptions([]);
+        setModel('');
+        setModelApiMap({});
+        message.error('获取可用大模型失败');
+      }
+    }
+    fetchModels();
+  }, []);
+
+  // 当前会话对象
+  const currentConv = conversations.find(c => c.id === currentId) || conversations[0];
+
+  // 新建聊天
+  const handleNewChat = () => {
+    const newConv = getDefaultConversation();
+    setConversations([newConv, ...conversations]);
+    setCurrentId(newConv.id);
+    setInput('');
+    message.info('已新建对话');
+  };
+
+  // 切换历史对话
+  const handleSelectConv = (id) => {
+    setCurrentId(id);
+    setInput('');
+  };
 
   // 发送消息
   const handleSend = async () => {
@@ -57,23 +111,58 @@ const ChatPanel = () => {
       return;
     }
     setSending(true);
-    setMessages(prev => [...prev, { role: 'user', content: input }]);
+    // 追加到当前会话
+    setConversations(convs => convs.map(c =>
+      c.id === currentId
+        ? { ...c, messages: [...c.messages, { role: 'user', content: input }] }
+        : c
+    ));
     setInput('');
-    console.log('发送消息:', { agent, model, kb, input });
-    // TODO: 调用后端chat接口，传递agent/model/kb/历史消息等参数
-    setTimeout(() => {
-      // 假回复
-      setMessages(prev => [...prev, { role: 'assistant', content: '（AI回复内容，后续对接大模型接口）' }]);
-      setSending(false);
-    }, 1000);
-  };
 
-  // 新建对话
-  const handleNewChat = () => {
-    setMessages([{ role: 'system', content: '您今天在想什么？' }]);
-    setInput('');
-    message.info('已新建对话');
-    console.log('新建对话');
+    // 动态选择API配置
+    const apiConf = getModelApiConfig()[model] || {};
+    const apiUrl = apiConf.baseURL ? apiConf.baseURL + '/chat/completions' : '';
+    const modelName = apiConf.model || model;
+    const apiKey = apiConf.apiKey;
+    const messagesToSend = (conversations.find(c => c.id === currentId)?.messages || []).concat({ role: 'user', content: input });
+
+    if (apiUrl) {
+      try {
+        console.log('请求参数:', { apiUrl, modelName, apiKey, messagesToSend });
+        const res = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(apiKey ? { 'Authorization': `Bearer ${apiKey}` } : {}),
+          },
+          body: JSON.stringify({
+            model: modelName,
+            messages: messagesToSend,
+          }),
+        });
+        if (!res.ok) throw new Error('API请求失败');
+        const data = await res.json();
+        console.log('AI响应数据:', data);
+        const reply = data.choices?.[0]?.message?.content || '（AI无回复）';
+        setConversations(convs => convs.map(c =>
+          c.id === currentId
+            ? { ...c, messages: [...c.messages, { role: 'assistant', content: reply }] }
+            : c
+        ));
+      } catch (err) {
+        setConversations(convs => convs.map(c =>
+          c.id === currentId
+            ? { ...c, messages: [...c.messages, { role: 'assistant', content: '【AI接口出错】' }] }
+            : c
+        ));
+        message.error('AI接口出错: ' + err.message);
+      } finally {
+        setSending(false);
+      }
+    } else {
+      message.error('未配置API，请先在API接口管理中配置大模型');
+      setSending(false);
+    }
   };
 
   return (
@@ -144,28 +233,30 @@ const ChatPanel = () => {
         {/* 历史对话列表 */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '0 0 24px 0', opacity: sidebarCollapsed ? 0 : 1, transition: 'opacity 0.3s' }}>
           {!sidebarCollapsed && <div style={{ color: '#888', fontSize: 14, margin: '8px 0 8px 32px' }}>聊天</div>}
-          {fakeHistory.map((item, idx) => (
+          {conversations.map((conv, idx) => (
             <div
-              key={idx}
+              key={conv.id}
               style={{
                 padding: sidebarCollapsed ? '8px 8px' : '8px 24px',
                 borderRadius: 8,
                 margin: sidebarCollapsed ? '2px 4px' : '2px 16px',
                 cursor: 'pointer',
-                color: '#222',
+                color: currentId === conv.id ? '#333' : '#222',
                 fontSize: 15,
-                background: '#fff',
+                background: currentId === conv.id ? '#e8f5e9' : '#fff',
                 transition: 'background 0.2s, padding 0.3s, margin 0.3s',
-                border: '1px solid transparent',
+                border: currentId === conv.id ? '1px solid #b2dfdb' : '1px solid transparent',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
+                fontWeight: currentId === conv.id ? 600 : 400,
               }}
-              onMouseOver={e => e.currentTarget.style.background = '#f5f5f5'}
-              onMouseOut={e => e.currentTarget.style.background = '#fff'}
+              onClick={() => handleSelectConv(conv.id)}
+              onMouseOver={e => e.currentTarget.style.background = currentId === conv.id ? '#d0f0e6' : '#f5f5f5'}
+              onMouseOut={e => e.currentTarget.style.background = currentId === conv.id ? '#e8f5e9' : '#fff'}
             >
-              <MessageOutlined style={{ marginRight: sidebarCollapsed ? 0 : 8, color: '#bbb', fontSize: 18 }} />
-              {!sidebarCollapsed && item}
+              <MessageOutlined style={{ marginRight: sidebarCollapsed ? 0 : 8, color: currentId === conv.id ? '#fff' : '#bbb', fontSize: 18 }} />
+              {!sidebarCollapsed && (conv.title || '新对话')}
             </div>
           ))}
         </div>
@@ -174,11 +265,11 @@ const ChatPanel = () => {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', background: '#fff', minHeight: 0 }}>
         {/* 欢迎语/大标题 */}
         <div style={{ marginTop: 80, marginBottom: 32, fontSize: 28, color: '#222', fontWeight: 600, textAlign: 'center', letterSpacing: 1 }}>
-          您今天在想什么？
+          {currentConv.messages[0]?.content || DEFAULT_WELCOME}
         </div>
         {/* 聊天消息区 */}
         <div style={{ flex: 1, width: '100%', maxWidth: 720, margin: '0 auto', overflowY: 'auto', padding: '0 0 24px 0' }}>
-          {messages.slice(1).map((msg, idx) => (
+          {currentConv.messages.slice(1).map((msg, idx) => (
             <div key={idx} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start', margin: '18px 0' }}>
               <div style={{
                 background: msg.role === 'user' ? '#e8f5e9' : '#f6f6fa',
@@ -216,7 +307,7 @@ const ChatPanel = () => {
               disabled={sending}
             />
             <Tooltip title="选择模型">
-              <Select value={model} onChange={setModel} style={{ width: 100, margin: '0 8px' }} options={modelOptions} bordered={false} />
+              <Select value={model} onChange={setModel} style={{ width: 120, margin: '0 8px' }} options={modelOptions} bordered={false} placeholder="选择模型" />
             </Tooltip>
             <Tooltip title="选择知识库">
               <Select value={kb} onChange={setKb} style={{ width: 100, marginRight: 8 }} options={kbOptions} bordered={false} />

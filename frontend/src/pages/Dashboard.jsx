@@ -216,11 +216,21 @@ const Dashboard = () => {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f8faf5', display: 'flex', flexDirection: 'column' }}>
-      {/* 顶部栏可选 */}
-      <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+      {/* 顶部状态栏 */}
+      <div style={{ height: 60, background: '#fff', boxShadow: '0 2px 8px #e5e5e5', display: 'flex', alignItems: 'center', padding: '0 24px', justifyContent: 'space-between' }}>
+        <div style={{ fontSize: 20, fontWeight: 600, color: '#333' }}>AI教育SaaS系统</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <span style={{ color: '#666' }}>欢迎，{userInfo.real_name || userInfo.username}</span>
+          <button onClick={handleLogout} style={{ border: 'none', background: 'none', color: '#3b6ed6', cursor: 'pointer', fontSize: 16 }}>退出登录</button>
+        </div>
+      </div>
+      {/* 主体内容 */}
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         {renderMenu()}
-        <div style={{ flex: 1, minWidth: 0, minHeight: 0, overflow: 'auto', padding: '24px' }}>{renderContent()}</div>
+        <div style={{ flex: 1, padding: 24, overflow: 'auto' }}>
+          {renderContent()}
+        </div>
       </div>
     </div>
   );
