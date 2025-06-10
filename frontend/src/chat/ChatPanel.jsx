@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button, Input, Select, message, Tooltip } from 'antd';
 import { SendOutlined, PlusOutlined, MessageOutlined, DoubleRightOutlined, DoubleLeftOutlined } from '@ant-design/icons';
 import { getModelApiConfig } from '../features/setting/ApiManage';
@@ -27,56 +27,84 @@ const getDefaultConversation = () => ({
 
 const LOCAL_KEY = 'ai_chat_conversations_v1';
 const LOCAL_CUR = 'ai_chat_current_id_v1';
+const LOCAL_MODEL = 'ai_chat_model_v1';
+const LOCAL_KB = 'ai_chat_kb_v1';
+const LOCAL_SIDEBAR = 'ai_chat_sidebar_v1';
 
 const ChatPanel = () => {
   // 多会话数据
-  const [conversations, setConversations] = useState([getDefaultConversation()]);
-  // 当前会话id
-  const [currentId, setCurrentId] = useState(conversations[0].id);
-  // 输入内容
-  const [input, setInput] = useState('');
-  // 动态模型选项和选中模型
-  const [modelOptions, setModelOptions] = useState([]);
-  const [model, setModel] = useState('');
-  const [modelApiMap, setModelApiMap] = useState({}); // model值到API对象的映射
-  const [kb, setKb] = useState('none');
-  // 侧边栏收起
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  // 是否发送中
-  const [sending, setSending] = useState(false);
-
-  // 加载本地历史
-  useEffect(() => {
+  const [conversations, setConversations] = useState(() => {
     const local = localStorage.getItem(LOCAL_KEY);
-    const cur = localStorage.getItem(LOCAL_CUR);
     if (local) {
       try {
         const arr = JSON.parse(local);
-        setConversations(arr.length ? arr : [getDefaultConversation()]);
-        setCurrentId(cur || (arr[0] && arr[0].id) || getDefaultConversation().id);
+        return arr.length ? arr : [getDefaultConversation()];
       } catch {
-        setConversations([getDefaultConversation()]);
-        setCurrentId(getDefaultConversation().id);
+        return [getDefaultConversation()];
       }
     }
-  }, []);
-  // 持久化
+    return [getDefaultConversation()];
+  });
+
+  // 当前会话id
+  const [currentId, setCurrentId] = useState(() => {
+    const cur = localStorage.getItem(LOCAL_CUR);
+    return cur || conversations[0].id;
+  });
+
+  // 输入内容
+  const [input, setInput] = useState('');
+  
+  // 动态模型选项和选中模型
+  const [modelOptions, setModelOptions] = useState([]);
+  const [model, setModel] = useState(() => localStorage.getItem(LOCAL_MODEL) || '');
+  const [modelApiMap, setModelApiMap] = useState({});
+  
+  // 知识库选择
+  const [kb, setKb] = useState(() => localStorage.getItem(LOCAL_KB) || 'none');
+  
+  // 侧边栏收起
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    const saved = localStorage.getItem(LOCAL_SIDEBAR);
+    return saved ? JSON.parse(saved) : false;
+  });
+  
+  // 是否发送中
+  const [sending, setSending] = useState(false);
+
+  // 持久化状态
   useEffect(() => {
     localStorage.setItem(LOCAL_KEY, JSON.stringify(conversations));
+  }, [conversations]);
+
+  useEffect(() => {
     localStorage.setItem(LOCAL_CUR, currentId);
-  }, [conversations, currentId]);
+  }, [currentId]);
+
+  useEffect(() => {
+    localStorage.setItem(LOCAL_MODEL, model);
+  }, [model]);
+
+  useEffect(() => {
+    localStorage.setItem(LOCAL_KB, kb);
+  }, [kb]);
+
+  useEffect(() => {
+    localStorage.setItem(LOCAL_SIDEBAR, JSON.stringify(sidebarCollapsed));
+  }, [sidebarCollapsed]);
 
   // 获取后端已配置模型列表
   useEffect(() => {
     async function fetchModels() {
       try {
         const res = await axios.get('/api/modelapis/');
-        window.__apis = res.data; // 关键：同步赋值全局变量，保证ChatPanel可用
-        // 只展示已配置的API，每个API对象包含model, model_display, apikey, base_url, model_name等
+        window.__apis = res.data;
         const opts = res.data.map(api => ({ value: api.model, label: api.model_display || api.model }));
         setModelOptions(opts);
-        // 默认选中第一个
-        if (opts.length > 0) setModel(opts[0].value);
+        // 如果没有选中的模型，默认选中第一个
+        if (!model && opts.length > 0) {
+          setModel(opts[0].value);
+        }
         // 建立model到API对象的映射
         const map = {};
         res.data.forEach(api => { map[api.model] = api; });
@@ -95,23 +123,22 @@ const ChatPanel = () => {
   const currentConv = conversations.find(c => c.id === currentId) || conversations[0];
 
   // 新建聊天
-  const handleNewChat = () => {
+  const handleNewChat = useCallback(() => {
     const newConv = getDefaultConversation();
-    setConversations([newConv, ...conversations]);
+    setConversations(prev => [newConv, ...prev]);
     setCurrentId(newConv.id);
     setInput('');
     message.info('已新建对话');
-  };
+  }, []);
 
   // 切换历史对话
-  const handleSelectConv = (id) => {
+  const handleSelectConv = useCallback((id) => {
     setCurrentId(id);
     setInput('');
-  };
+  }, []);
 
   // 发送消息
-  const handleSend = async () => {
-    console.log('handleSend 最前面触发', { input, model, modelOptions, apiConfig: getModelApiConfig() });
+  const handleSend = useCallback(async () => {
     if (!input.trim()) {
       message.warning('请输入内容');
       return;
@@ -144,11 +171,10 @@ const ChatPanel = () => {
           body: JSON.stringify({
             model: modelName,
             messages: messagesToSend,
-            stream: true, // 请求流式
+            stream: true,
           }),
         });
         if (res.body && res.headers.get('content-type')?.includes('text/event-stream')) {
-          // 流式SSE处理
           const reader = res.body.getReader();
           let aiContent = '';
           setConversations(convs => convs.map(c =>
@@ -157,6 +183,7 @@ const ChatPanel = () => {
               : c
           ));
           let done = false;
+          let totalTokens = 0;
           while (!done) {
             const { value, done: doneReading } = await reader.read();
             done = doneReading;
@@ -176,12 +203,25 @@ const ChatPanel = () => {
                         : c
                     ));
                   }
+                  if (delta.usage?.total_tokens) {
+                    totalTokens = delta.usage.total_tokens;
+                  }
                 } catch {}
               }
             });
           }
+          if (totalTokens > 0) {
+            try {
+              await axios.post('/api/tokenusages/', {
+                apikey: apiKey,
+                tokens: totalTokens,
+                prompt: input.slice(0, 200)
+              });
+            } catch (err) {
+              console.error('记录token使用情况失败:', err);
+            }
+          }
         } else {
-          // 非流式
           if (!res.ok) throw new Error('API请求失败');
           const data = await res.json();
           console.log('AI响应数据:', data);
@@ -191,6 +231,17 @@ const ChatPanel = () => {
               ? { ...c, messages: [...c.messages, { role: 'assistant', content: reply }] }
               : c
           ));
+          if (data.usage?.total_tokens) {
+            try {
+              await axios.post('/api/tokenusages/', {
+                apikey: apiKey,
+                tokens: data.usage.total_tokens,
+                prompt: input.slice(0, 200)
+              });
+            } catch (err) {
+              console.error('记录token使用情况失败:', err);
+            }
+          }
         }
       } catch (err) {
         setConversations(convs => convs.map(c =>
@@ -206,7 +257,7 @@ const ChatPanel = () => {
       message.error('未配置API，请先在API接口管理中配置大模型');
       setSending(false);
     }
-  };
+  }, [input, model, currentId, conversations]);
 
   return (
     <div style={{ display: 'flex', height: '100%', background: '#fff' }}>
