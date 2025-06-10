@@ -27,7 +27,7 @@ class ModelApiSerializer(serializers.ModelSerializer):
     usage = serializers.SerializerMethodField()
     class Meta:
         model = ModelApi
-        fields = ['id', 'model', 'model_display', 'apikey', 'usage', 'time']
+        fields = ['id', 'model', 'model_display', 'apikey', 'usage', 'time', 'base_url', 'model_name']
     def get_usage(self, obj):
         from .models import TokenUsage
         return TokenUsage.objects.filter(apikey=obj.apikey).aggregate(total=models.Sum('tokens'))['total'] or 0

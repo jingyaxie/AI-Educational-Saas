@@ -214,13 +214,12 @@ export default ApiManage;
 // 导出函数，供ChatPanel使用，返回当前已配置的API列表，格式为 { model: { baseURL, apiKey, model } }
 export const getModelApiConfig = () => {
   const config = {};
-  // 假设apis是当前组件内的状态，这里直接使用全局变量或通过props传入
   const apis = window.__apis || [];
   apis.forEach(api => {
     config[api.model] = {
-      baseURL: api.base_url,
+      baseURL: api.base_url || api.baseurl || api.url || '',
       apiKey: api.apikey,
-      model: api.model_name || api.model
+      model: api.model_name || api.name || api.model || ''
     };
   });
   return config;

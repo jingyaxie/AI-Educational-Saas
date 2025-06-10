@@ -67,6 +67,7 @@ const ChatPanel = () => {
     async function fetchModels() {
       try {
         const res = await axios.get('/api/modelapis/');
+        window.__apis = res.data; // 关键：同步赋值全局变量，保证ChatPanel可用
         // 只展示已配置的API，每个API对象包含model, model_display, apikey, base_url, model_name等
         const opts = res.data.map(api => ({ value: api.model, label: api.model_display || api.model }));
         setModelOptions(opts);
@@ -106,6 +107,7 @@ const ChatPanel = () => {
 
   // 发送消息
   const handleSend = async () => {
+    console.log('handleSend 最前面触发', { input, model, modelOptions, apiConfig: getModelApiConfig() });
     if (!input.trim()) {
       message.warning('请输入内容');
       return;
@@ -301,7 +303,7 @@ const ChatPanel = () => {
               value={input}
               onChange={e => setInput(e.target.value)}
               placeholder="询问任何问题"
-              bordered={false}
+              variant="borderless"
               style={{ fontSize: 17, background: 'transparent', boxShadow: 'none', outline: 'none', flex: 1 }}
               onPressEnter={e => { if (!e.shiftKey) { e.preventDefault(); handleSend(); } }}
               disabled={sending}

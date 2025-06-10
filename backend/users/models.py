@@ -57,6 +57,8 @@ class ModelApi(models.Model):
     apikey = models.CharField(max_length=128, unique=True, verbose_name='API-key')  # API密钥，唯一
     usage = models.CharField(max_length=64, blank=True, null=True, verbose_name='token用量')  # token用量
     time = models.DateTimeField(auto_now_add=True, verbose_name='接入时间')  # 接入时间
+    base_url = models.CharField(max_length=256, blank=True, null=True, verbose_name='Base URL')  # 新增
+    model_name = models.CharField(max_length=128, blank=True, null=True, verbose_name='Model Name')  # 新增
 
     def __str__(self):
         return f'{self.get_model_display()}'

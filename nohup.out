@@ -737,3 +737,23 @@ Starting development server at http://0.0.0.0:8000/
 Quit the server with CONTROL-C.
 
 Watching for file changes with StatReloader
+/Users/mac/coze/AI-Educational-Saas/backend/users/models.py changed, reloading.
+Performing system checks...
+
+System check identified no issues (0 silenced).
+June 09, 2025 - 15:17:53
+Django version 4.2.22, using settings 'account_system.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+Watching for file changes with StatReloader
+/Users/mac/coze/AI-Educational-Saas/backend/users/serializers.py changed, reloading.
+Performing system checks...
+
+System check identified no issues (0 silenced).
+June 10, 2025 - 15:29:03
+Django version 4.2.22, using settings 'account_system.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+Watching for file changes with StatReloader
