@@ -3,6 +3,10 @@ import { Button, Input, Select, message, Tooltip } from 'antd';
 import { SendOutlined, PlusOutlined, MessageOutlined, DoubleRightOutlined, DoubleLeftOutlined } from '@ant-design/icons';
 import { getModelApiConfig } from '../features/setting/ApiManage';
 import axios from '../api';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 const kbOptions = [
   { value: 'none', label: '无知识库' },
@@ -140,17 +144,54 @@ const ChatPanel = () => {
           body: JSON.stringify({
             model: modelName,
             messages: messagesToSend,
+            stream: true, // 请求流式
           }),
         });
-        if (!res.ok) throw new Error('API请求失败');
-        const data = await res.json();
-        console.log('AI响应数据:', data);
-        const reply = data.choices?.[0]?.message?.content || '（AI无回复）';
-        setConversations(convs => convs.map(c =>
-          c.id === currentId
-            ? { ...c, messages: [...c.messages, { role: 'assistant', content: reply }] }
-            : c
-        ));
+        if (res.body && res.headers.get('content-type')?.includes('text/event-stream')) {
+          // 流式SSE处理
+          const reader = res.body.getReader();
+          let aiContent = '';
+          setConversations(convs => convs.map(c =>
+            c.id === currentId
+              ? { ...c, messages: [...c.messages, { role: 'assistant', content: '' }] }
+              : c
+          ));
+          let done = false;
+          while (!done) {
+            const { value, done: doneReading } = await reader.read();
+            done = doneReading;
+            const chunk = new TextDecoder().decode(value);
+            chunk.split('\n').forEach(line => {
+              if (line.startsWith('data: ')) {
+                const data = line.replace('data: ', '').trim();
+                if (data === '[DONE]') return;
+                try {
+                  const delta = JSON.parse(data);
+                  const content = delta.choices?.[0]?.delta?.content || '';
+                  if (content) {
+                    aiContent += content;
+                    setConversations(convs => convs.map(c =>
+                      c.id === currentId
+                        ? { ...c, messages: c.messages.map((m, i, arr) => i === arr.length - 1 ? { ...m, content: aiContent } : m) }
+                        : c
+                    ));
+                  }
+                } catch {}
+              }
+            });
+          }
+        } else {
+          // 非流式
+          if (!res.ok) throw new Error('API请求失败');
+          const data = await res.json();
+          console.log('AI响应数据:', data);
+          const reply = data.choices?.[0]?.message?.content || '（AI无回复）';
+          setConversations(convs => convs.map(c =>
+            c.id === currentId
+              ? { ...c, messages: [...c.messages, { role: 'assistant', content: reply }] }
+              : c
+          ));
+        }
       } catch (err) {
         setConversations(convs => convs.map(c =>
           c.id === currentId
@@ -168,7 +209,7 @@ const ChatPanel = () => {
   };
 
   return (
-    <div style={{ display: 'flex', height: '100vh', background: '#fff' }}>
+    <div style={{ display: 'flex', height: '100%', background: '#fff' }}>
       {/* 左侧极简侧边栏 */}
       <div
         style={{
@@ -266,61 +307,149 @@ const ChatPanel = () => {
       {/* 右侧主区 */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', background: '#fff', minHeight: 0 }}>
         {/* 欢迎语/大标题 */}
-        <div style={{ marginTop: 80, marginBottom: 32, fontSize: 28, color: '#222', fontWeight: 600, textAlign: 'center', letterSpacing: 1 }}>
+        <div style={{ marginTop: 40, marginBottom: 24, fontSize: 28, color: '#222', fontWeight: 600, textAlign: 'center', letterSpacing: 1 }}>
           {currentConv.messages[0]?.content || DEFAULT_WELCOME}
         </div>
-        {/* 聊天消息区 */}
-        <div style={{ flex: 1, width: '100%', maxWidth: 720, margin: '0 auto', overflowY: 'auto', padding: '0 0 24px 0' }}>
+        {/* 聊天消息区独立滚动 */}
+        <div style={{ width: '100%', maxWidth: 700, flex: 1, overflowY: 'auto', margin: '0 auto', paddingBottom: 24 }}>
           {currentConv.messages.slice(1).map((msg, idx) => (
-            <div key={idx} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start', margin: '18px 0' }}>
-              <div style={{
-                background: msg.role === 'user' ? '#e8f5e9' : '#f6f6fa',
-                color: '#222',
-                borderRadius: 18,
-                padding: '14px 22px',
-                fontSize: 16,
-                maxWidth: 480,
-                boxShadow: '0 2px 8px #f5f5f5',
-                lineHeight: 1.7,
-              }}>{msg.content}</div>
+            <div
+              key={idx}
+              style={{
+                display: 'flex',
+                justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                width: '100%',
+                margin: '18px 0',
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 16,
+                  lineHeight: 1.8,
+                  color: '#222',
+                  maxWidth: '90%',
+                  minWidth: 0,
+                  padding: '8px 0',
+                  wordBreak: 'break-word',
+                  textAlign: msg.role === 'user' ? 'right' : 'left',
+                }}
+              >
+                {msg.role === 'assistant' ? (
+                  <ReactMarkdown
+                    children={msg.content}
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      code({node, inline, className, children, ...props}) {
+                        const match = /language-(\w+)/.exec(className || '');
+                        return !inline && match ? (
+                          <SyntaxHighlighter
+                            style={oneDark}
+                            language={match[1]}
+                            PreTag="div"
+                            {...props}
+                          >{String(children).replace(/\n$/, '')}</SyntaxHighlighter>
+                        ) : (
+                          <code className={className} {...props}>{children}</code>
+                        );
+                      }
+                    }}
+                  />
+                ) : (
+                  <div>{msg.content}</div>
+                )}
+              </div>
             </div>
           ))}
         </div>
-        {/* 底部输入区 */}
-        <div style={{ width: '100%', display: 'flex', justifyContent: 'center', marginBottom: 40 }}>
+        {/* 底部输入区 ChatGPT风格+模型/知识库选择 */}
+        <div style={{ width: '100%', display: 'flex', justifyContent: 'center', background: 'none', margin: '0 auto', position: 'relative', bottom: 0 }}>
           <div style={{
+            width: '100%',
+            maxWidth: 700,
+            margin: '24px auto',
             background: '#fff',
-            borderRadius: 32,
-            boxShadow: '0 2px 16px #f0f0f0',
-            padding: '16px 24px',
+            borderRadius: 16,
+            boxShadow: '0 2px 16px #e0e0e0',
+            padding: '12px 16px',
             display: 'flex',
-            alignItems: 'center',
-            width: 600,
-            maxWidth: '90%',
+            alignItems: 'flex-end',
             border: '1px solid #eee',
           }}>
-            <Input
+            {/* 模型选择 */}
+            <Select
+              value={model}
+              onChange={setModel}
+              options={modelOptions}
+              placeholder="选择模型"
+              style={{
+                borderRadius: 8,
+                border: '1px solid #eee',
+                background: '#fafafa',
+                minWidth: 110,
+                height: 40,
+                marginRight: 8,
+                fontSize: 15,
+              }}
+              dropdownStyle={{ borderRadius: 8 }}
+            />
+            {/* 知识库选择 */}
+            <Select
+              value={kb}
+              onChange={setKb}
+              options={kbOptions}
+              placeholder="知识库"
+              style={{
+                borderRadius: 8,
+                border: '1px solid #eee',
+                background: '#fafafa',
+                minWidth: 100,
+                height: 40,
+                marginRight: 8,
+                fontSize: 15,
+              }}
+              dropdownStyle={{ borderRadius: 8 }}
+            />
+            <Input.TextArea
               value={input}
               onChange={e => setInput(e.target.value)}
               placeholder="询问任何问题"
               variant="borderless"
-              style={{ fontSize: 17, background: 'transparent', boxShadow: 'none', outline: 'none', flex: 1 }}
+              autoSize={{ minRows: 1, maxRows: 6 }}
+              style={{
+                fontSize: 17,
+                background: 'transparent',
+                boxShadow: 'none',
+                outline: 'none',
+                flex: 1,
+                resize: 'none',
+                border: 'none',
+                padding: 0,
+                marginRight: 12,
+                minHeight: 32,
+                maxHeight: 120,
+              }}
               onPressEnter={e => { if (!e.shiftKey) { e.preventDefault(); handleSend(); } }}
               disabled={sending}
             />
-            <Tooltip title="选择模型">
-              <Select value={model} onChange={setModel} style={{ width: 120, margin: '0 8px' }} options={modelOptions} bordered={false} placeholder="选择模型" />
-            </Tooltip>
-            <Tooltip title="选择知识库">
-              <Select value={kb} onChange={setKb} style={{ width: 100, marginRight: 8 }} options={kbOptions} bordered={false} />
-            </Tooltip>
             <Button
               type="primary"
               shape="circle"
               icon={<SendOutlined />}
               onClick={handleSend}
               loading={sending}
-              style={{ width: 44, height: 44, fontSize: 20, boxShadow: 'none', background: '#222', border: 'none' }}
+              style={{
+                width: 44,
+                height: 44,
+                fontSize: 20,
+                boxShadow: 'none',
+                background: '#222',
+                border: 'none',
+                marginLeft: 4,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'background 0.2s',
+              }}
             />
           </div>
         </div>
