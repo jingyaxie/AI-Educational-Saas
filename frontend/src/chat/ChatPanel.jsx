@@ -184,6 +184,7 @@ const ChatPanel = () => {
           ));
           let done = false;
           let totalTokens = 0;
+          let lastTokenCount = 0;
           while (!done) {
             const { value, done: doneReading } = await reader.read();
             done = doneReading;
@@ -205,20 +206,25 @@ const ChatPanel = () => {
                   }
                   if (delta.usage?.total_tokens) {
                     totalTokens = delta.usage.total_tokens;
+                    lastTokenCount = totalTokens;
                   }
                 } catch {}
               }
             });
           }
-          if (totalTokens > 0) {
+          if (lastTokenCount > 0) {
             try {
-              await axios.post('/api/tokenusages/', {
+              const tokenData = {
                 apikey: apiKey,
-                tokens: totalTokens,
+                tokens: lastTokenCount,
                 prompt: input.slice(0, 200)
-              });
+              };
+              console.log('记录token使用情况:', tokenData);
+              const response = await axios.post('/api/tokenusages/', tokenData);
+              console.log('token记录成功:', response.data);
             } catch (err) {
-              console.error('记录token使用情况失败:', err);
+              console.error('记录token使用情况失败:', err.response?.data || err);
+              message.error('记录token使用情况失败: ' + (err.response?.data?.detail || '未知错误'));
             }
           }
         } else {
@@ -233,13 +239,17 @@ const ChatPanel = () => {
           ));
           if (data.usage?.total_tokens) {
             try {
-              await axios.post('/api/tokenusages/', {
+              const tokenData = {
                 apikey: apiKey,
                 tokens: data.usage.total_tokens,
                 prompt: input.slice(0, 200)
-              });
+              };
+              console.log('记录token使用情况:', tokenData);
+              const response = await axios.post('/api/tokenusages/', tokenData);
+              console.log('token记录成功:', response.data);
             } catch (err) {
-              console.error('记录token使用情况失败:', err);
+              console.error('记录token使用情况失败:', err.response?.data || err);
+              message.error('记录token使用情况失败: ' + (err.response?.data?.detail || '未知错误'));
             }
           }
         }

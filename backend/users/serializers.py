@@ -35,9 +35,38 @@ class ModelApiSerializer(serializers.ModelSerializer):
 class TokenUsageSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)
     agent_name = serializers.CharField(source='agent.name', read_only=True)
+    
     class Meta:
         model = TokenUsage
         fields = ['id', 'user', 'username', 'agent', 'agent_name', 'apikey', 'tokens', 'created', 'prompt']
+        read_only_fields = ['user', 'created']
+    
+    def validate_tokens(self, value):
+        if not value or value <= 0:
+            raise serializers.ValidationError('tokens必须大于0')
+        return value
+    
+    def validate_apikey(self, value):
+        if not value:
+            raise serializers.ValidationError('apikey不能为空')
+        return value
+    
+    def create(self, validated_data):
+        try:
+            # 确保user字段存在
+            validated_data['user'] = self.context['request'].user
+            
+            # 创建记录
+            instance = super().create(validated_data)
+            
+            # 更新用户的token_usage
+            user = instance.user
+            user.token_usage = (user.token_usage or 0) + instance.tokens
+            user.save()
+            
+            return instance
+        except Exception as e:
+            raise serializers.ValidationError(f'创建token记录失败: {str(e)}')
 
 class KnowledgeFileSerializer(serializers.ModelSerializer):
     class Meta:

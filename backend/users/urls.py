@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import LoginView, UserInfoView, SetRoleView, CaptchaView, dashboard, MemberListView, MemberDetailView, UserGroupListView, UserGroupDetailView, AgentListCreateView, AgentRetrieveUpdateDestroyView, ModelApiListCreateView, ModelApiRetrieveUpdateDestroyView, refresh_usage, TokenUsageListCreateView, KnowledgeBaseListCreateView, KnowledgeBaseRetrieveUpdateDestroyView, SpaceListCreateView, SpaceRetrieveUpdateDestroyView, SpaceMemberListCreateView, SpaceMemberRetrieveUpdateDestroyView, SpaceDocumentListCreateView, SpaceDocumentRetrieveUpdateDestroyView
+from .views import LoginView, UserInfoView, SetRoleView, CaptchaView, dashboard, MemberListView, MemberDetailView, UserGroupListView, UserGroupDetailView, AgentListCreateView, AgentRetrieveUpdateDestroyView, ModelApiListCreateView, ModelApiRetrieveUpdateDestroyView, refresh_usage, TokenUsageListCreateView, token_usage_stats, KnowledgeBaseListCreateView, KnowledgeBaseRetrieveUpdateDestroyView, SpaceListCreateView, SpaceRetrieveUpdateDestroyView, SpaceMemberListCreateView, SpaceMemberRetrieveUpdateDestroyView, SpaceDocumentListCreateView, SpaceDocumentRetrieveUpdateDestroyView
 
 urlpatterns = [
     path('login/', LoginView.as_view()),
@@ -17,12 +17,13 @@ urlpatterns = [
     path('modelapis/<int:id>/', ModelApiRetrieveUpdateDestroyView.as_view(), name='modelapi-detail'),
     path('modelapis/refresh_usage/', refresh_usage, name='modelapi-refresh-usage'),
     path('tokenusages/', TokenUsageListCreateView.as_view(), name='tokenusage-list'),
+    path('tokenusages/stats/', token_usage_stats, name='tokenusage-stats'),
     path('knowledgebases/', KnowledgeBaseListCreateView.as_view(), name='knowledgebase-list'),
     path('knowledgebases/<int:id>/', KnowledgeBaseRetrieveUpdateDestroyView.as_view(), name='knowledgebase-detail'),
     path('spaces/', SpaceListCreateView.as_view(), name='space-list'),
     path('spaces/<int:id>/', SpaceRetrieveUpdateDestroyView.as_view(), name='space-detail'),
-    path('spaces/<int:space_id>/members/', SpaceMemberListCreateView.as_view(), name='spacemember-list'),
-    path('spaces/<int:space_id>/members/<int:id>/', SpaceMemberRetrieveUpdateDestroyView.as_view(), name='spacemember-detail'),
-    path('spaces/<int:space_id>/documents/', SpaceDocumentListCreateView.as_view(), name='spacedocument-list'),
-    path('spaces/<int:space_id>/documents/<int:id>/', SpaceDocumentRetrieveUpdateDestroyView.as_view(), name='spacedocument-detail'),
+    path('spaces/<int:space_id>/members/', SpaceMemberListCreateView.as_view(), name='space-member-list'),
+    path('spaces/<int:space_id>/members/<int:id>/', SpaceMemberRetrieveUpdateDestroyView.as_view(), name='space-member-detail'),
+    path('spaces/<int:space_id>/documents/', SpaceDocumentListCreateView.as_view(), name='space-document-list'),
+    path('spaces/<int:space_id>/documents/<int:id>/', SpaceDocumentRetrieveUpdateDestroyView.as_view(), name='space-document-detail'),
 ] 

@@ -21,6 +21,7 @@ import requests
 from django.conf import settings
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework import serializers
 
 logger = logging.getLogger(__name__)
 
@@ -275,6 +276,66 @@ class TokenUsageListCreateView(generics.ListCreateAPIView):
     filterset_fields = ['user', 'agent', 'apikey']
     search_fields = ['prompt']
     ordering_fields = ['created', 'tokens']
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        start_date = self.request.query_params.get('start_date')
+        end_date = self.request.query_params.get('end_date')
+        
+        # 添加用户过滤
+        queryset = queryset.filter(user=self.request.user)
+        
+        if start_date:
+            queryset = queryset.filter(created__gte=start_date)
+        if end_date:
+            queryset = queryset.filter(created__lte=end_date)
+            
+        logger.info(f'获取token使用记录，用户: {self.request.user}, 记录数: {queryset.count()}')
+        return queryset
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
+
+    def perform_create(self, serializer):
+        try:
+            logger.info(f'创建token使用记录，请求数据: {self.request.data}')
+            logger.info(f'当前用户: {self.request.user}')
+            instance = serializer.save()
+            logger.info(f'Token使用记录创建成功: {instance}')
+        except Exception as e:
+            logger.error(f'创建token使用记录失败: {str(e)}')
+            raise
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def token_usage_stats(request):
+    """获取token使用统计信息"""
+    from django.db.models import Sum
+    from django.utils import timezone
+    import datetime
+    
+    # 获取时间范围
+    today = timezone.now().date()
+    yesterday = today - datetime.timedelta(days=1)
+    week_start = today - datetime.timedelta(days=today.weekday())
+    month_start = today.replace(day=1)
+    
+    # 计算各时间段的使用量
+    total = TokenUsage.objects.aggregate(total=Sum('tokens'))['total'] or 0
+    today_usage = TokenUsage.objects.filter(created__date=today).aggregate(total=Sum('tokens'))['total'] or 0
+    yesterday_usage = TokenUsage.objects.filter(created__date=yesterday).aggregate(total=Sum('tokens'))['total'] or 0
+    week_usage = TokenUsage.objects.filter(created__date__gte=week_start).aggregate(total=Sum('tokens'))['total'] or 0
+    month_usage = TokenUsage.objects.filter(created__date__gte=month_start).aggregate(total=Sum('tokens'))['total'] or 0
+    
+    return Response({
+        'total': total,
+        'today': today_usage,
+        'yesterday': yesterday_usage,
+        'week': week_usage,
+        'month': month_usage
+    })
 
 class KnowledgeBaseListCreateView(generics.ListCreateAPIView):
     queryset = KnowledgeBase.objects.all().order_by('-created')
