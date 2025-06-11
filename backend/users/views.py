@@ -22,6 +22,7 @@ from django.conf import settings
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework import serializers
+import traceback
 
 logger = logging.getLogger(__name__)
 
@@ -274,23 +275,88 @@ class TokenUsageListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['user', 'agent', 'apikey']
-    search_fields = ['prompt']
+    search_fields = ['prompt', 'user__username']
     ordering_fields = ['created', 'tokens']
 
     def get_queryset(self):
+        logger.info('[TokenUsage] ====== 开始处理Token消耗明细请求 ======')
+        logger.info(f'[TokenUsage] 请求方法: {self.request.method}')
+        logger.info(f'[TokenUsage] 请求路径: {self.request.path}')
+        logger.info(f'[TokenUsage] 请求参数: {self.request.query_params}')
+        logger.info(f'[TokenUsage] 认证信息: {self.request.auth}')
+        logger.info(f'[TokenUsage] 当前用户: {self.request.user}')
+        
         queryset = super().get_queryset()
         start_date = self.request.query_params.get('start_date')
         end_date = self.request.query_params.get('end_date')
+        agent = self.request.query_params.get('agent')
+        apikey = self.request.query_params.get('apikey')
+        search = self.request.query_params.get('search')
+        username = self.request.query_params.get('username')
+        user = self.request.query_params.get('user')
+        
+        logger.info(f'[TokenUsage] 时间范围: {start_date} 至 {end_date}')
+        logger.info(f'[TokenUsage] 智能体过滤: {agent}')
+        logger.info(f'[TokenUsage] API-key过滤: {apikey}')
+        logger.info(f'[TokenUsage] 提示词搜索: {search}')
+        logger.info(f'[TokenUsage] 用户名搜索: {username}')
+        logger.info(f'[TokenUsage] 用户过滤: {user}')
+        logger.info(f'[TokenUsage] 初始查询SQL: {str(queryset.query)}')
+        logger.info(f'[TokenUsage] 初始记录数: {queryset.count()}')
         
         # 添加用户过滤
-        queryset = queryset.filter(user=self.request.user)
+        if user:
+            queryset = queryset.filter(user_id=user)
+        else:
+            queryset = queryset.filter(user=self.request.user)
+        logger.info(f'[TokenUsage] 用户过滤后SQL: {str(queryset.query)}')
+        logger.info(f'[TokenUsage] 用户过滤后记录数: {queryset.count()}')
         
+        # 添加智能体过滤
+        if agent:
+            queryset = queryset.filter(agent_id=agent)
+            logger.info(f'[TokenUsage] 智能体过滤后SQL: {str(queryset.query)}')
+            logger.info(f'[TokenUsage] 智能体过滤后记录数: {queryset.count()}')
+        
+        # 添加API-key过滤
+        if apikey:
+            queryset = queryset.filter(apikey=apikey)
+            logger.info(f'[TokenUsage] API-key过滤后SQL: {str(queryset.query)}')
+            logger.info(f'[TokenUsage] API-key过滤后记录数: {queryset.count()}')
+        
+        # 添加提示词搜索
+        if search:
+            queryset = queryset.filter(prompt__icontains=search)
+            logger.info(f'[TokenUsage] 提示词搜索后SQL: {str(queryset.query)}')
+            logger.info(f'[TokenUsage] 提示词搜索后记录数: {queryset.count()}')
+        
+        # 添加用户名搜索
+        if username:
+            queryset = queryset.filter(user__username__icontains=username)
+            logger.info(f'[TokenUsage] 用户名搜索后SQL: {str(queryset.query)}')
+            logger.info(f'[TokenUsage] 用户名搜索后记录数: {queryset.count()}')
+        
+        # 添加时间范围过滤
         if start_date:
             queryset = queryset.filter(created__gte=start_date)
+            logger.info(f'[TokenUsage] 开始日期过滤后SQL: {str(queryset.query)}')
+            logger.info(f'[TokenUsage] 开始日期过滤后记录数: {queryset.count()}')
+            
         if end_date:
             queryset = queryset.filter(created__lte=end_date)
+            logger.info(f'[TokenUsage] 结束日期过滤后SQL: {str(queryset.query)}')
+            logger.info(f'[TokenUsage] 结束日期过滤后记录数: {queryset.count()}')
+        
+        # 记录最终结果
+        final_count = queryset.count()
+        logger.info(f'[TokenUsage] 最终SQL: {str(queryset.query)}')
+        logger.info(f'[TokenUsage] 最终记录数: {final_count}')
+        if final_count > 0:
+            logger.info(f'[TokenUsage] 返回数据示例: {[str(obj) for obj in queryset[:5]]}')
+        else:
+            logger.info('[TokenUsage] 没有找到符合条件的记录')
             
-        logger.info(f'获取token使用记录，用户: {self.request.user}, 记录数: {queryset.count()}')
+        logger.info('[TokenUsage] ====== Token消耗明细请求处理完成 ======')
         return queryset
 
     def get_serializer_context(self):
@@ -300,12 +366,18 @@ class TokenUsageListCreateView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         try:
-            logger.info(f'创建token使用记录，请求数据: {self.request.data}')
-            logger.info(f'当前用户: {self.request.user}')
+            logger.info('[TokenUsage] ====== 开始创建Token使用记录 ======')
+            logger.info(f'[TokenUsage] 请求数据: {self.request.data}')
+            logger.info(f'[TokenUsage] 当前用户: {self.request.user}')
+            
             instance = serializer.save()
-            logger.info(f'Token使用记录创建成功: {instance}')
+            
+            logger.info(f'[TokenUsage] Token使用记录创建成功: {instance}')
+            logger.info('[TokenUsage] ====== Token使用记录创建完成 ======')
         except Exception as e:
-            logger.error(f'创建token使用记录失败: {str(e)}')
+            logger.error(f'[TokenUsage] 创建token使用记录失败: {str(e)}')
+            logger.error(f'[TokenUsage] 错误详情: {e.__class__.__name__}')
+            logger.error(f'[TokenUsage] 错误堆栈: {traceback.format_exc()}')
             raise
 
 @api_view(['GET'])
