@@ -1,24 +1,49 @@
 import React, { useState } from 'react';
-import { Button, Steps, Input, InputNumber, Checkbox, Select, Radio, Form, message, Spin } from 'antd';
-import { LeftOutlined, EyeOutlined, ReloadOutlined } from '@ant-design/icons';
+import { Button, Steps, Input, InputNumber, Checkbox, Select, Radio, Form, message, Spin, Tabs, Collapse, Space, Tooltip } from 'antd';
+import { LeftOutlined, EyeOutlined, ReloadOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from '../../api';
 
+const { TabPane } = Tabs;
+const { Panel } = Collapse;
+
 const defaultParams = {
-  chunk_size: 1024,
-  chunk_overlap: 50,
-  separators: ['\n\n'],
-  parent_split_method: 'off',
-  parent_separator: '',
-  parent_chunk_size: 1024,
-  parent_chunk_overlap: 50,
-  child_separator: '',
-  child_chunk_size: 512,
-  child_chunk_overlap: 20,
-  replace_whitespace: true,
-  remove_url_email: false,
+  // 文档加载设置
+  loader_type: 'text',
+  encoding: 'utf-8',
+  
+  // 文本分割设置
+  text_splitter: 'recursive',
+  chunk_size: 1000,
+  chunk_overlap: 200,
+  separators: ['\n\n', '\n', '。', '！', '？', '.', '!', '?'],
+  
+  // 文本清洗设置
+  clean_text: true,
+  remove_urls: true,
+  remove_emails: true,
+  remove_extra_whitespace: true,
+  remove_special_chars: false,
+  
+  // 向量化设置
   embedding_model: 'text-embedding-3-large',
-  index_mode: 'high',
+  embedding_dimension: 1536,
+  
+  // 向量存储设置
+  vector_store: 'chroma',
+  similarity_metric: 'cosine',
+  
+  // 检索设置
+  retrieval_strategy: 'similarity',
+  top_k: 4,
+  similarity_threshold: 0.7,
+  
+  // 高级设置
+  use_metadata: true,
+  metadata_fields: ['source', 'page', 'chunk'],
+  use_parent_document: false,
+  parent_chunk_size: 2000,
+  parent_chunk_overlap: 400,
 };
 
 const KnowledgeSegmentSetting = ({ onBack }) => {
@@ -37,7 +62,6 @@ const KnowledgeSegmentSetting = ({ onBack }) => {
     try {
       const values = await form.validateFields();
       setLoading(true);
-      // 假设file有id，实际应为后端已保存的文件id
       const fileId = file.id || 1;
       const res = await axios.post(`/api/knowledgebases/files/${fileId}/preview/`, values);
       setPreviewData(res.data);
@@ -52,135 +76,191 @@ const KnowledgeSegmentSetting = ({ onBack }) => {
     setPreviewData(null);
   };
 
-  const parentMode = Form.useWatch('parent_split_method', form) === 'on';
-
   return (
     <div style={{ background: '#fff', borderRadius: 12, padding: 24, minHeight: 520, width: '100%', maxWidth: '100%', margin: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 24 }}>
         <Button icon={<LeftOutlined />} type="text" onClick={onBack || (() => navigate(-1))} style={{ marginRight: 8 }} />
-        <span style={{ fontWeight: 600, fontSize: 18 }}>新建知识库</span>
+        <span style={{ fontWeight: 600, fontSize: 18 }}>知识库设置</span>
       </div>
+      
       <Steps current={1} style={{ marginBottom: 32 }} items={[
         { title: '选择数据源' },
-        { title: '文本分段与清洗' },
-        { title: '处理并完成' },
+        { title: '配置处理参数' },
+        { title: '完成创建' },
       ]} />
+
       <Spin spinning={loading}>
         <div style={{ display: 'flex', gap: 32 }}>
-          {/* 左侧分段设置 */}
+          {/* 左侧设置面板 */}
           <div style={{ flex: 1, minWidth: 420 }}>
             <Form form={form} layout="vertical" initialValues={defaultParams}>
-              <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 16 }}>分段设置</div>
-              <div style={{ background: '#f7f8fa', borderRadius: 8, padding: 24, marginBottom: 24 }}>
-                <div style={{ fontWeight: 500, marginBottom: 12 }}>通用</div>
-                <Form.Item name="separators" label="分段标识符">
-                  <Select mode="tags" style={{ width: 200 }} />
-                </Form.Item>
-                <Form.Item name="chunk_size" label="分段最大长度">
-                  <InputNumber min={100} max={2000} style={{ width: 200 }} addonAfter="characters" />
-                </Form.Item>
-                <Form.Item name="chunk_overlap" label="分段重叠长度">
-                  <InputNumber min={0} max={200} style={{ width: 200 }} addonAfter="characters" />
-                </Form.Item>
-                <Form.Item name="replace_whitespace" valuePropName="checked">
-                  <Checkbox>替换掉连续的空格、换行符和制表符</Checkbox>
-                </Form.Item>
-                <Form.Item name="remove_url_email" valuePropName="checked">
-                  <Checkbox>删除所有 URL 和电子邮件地址</Checkbox>
-                </Form.Item>
-                <Button icon={<EyeOutlined />} style={{ marginRight: 12 }} onClick={handlePreview}>预览块</Button>
-                <Button icon={<ReloadOutlined />} onClick={handleReset}>重置</Button>
-              </div>
-              <div style={{ background: '#f7f8fa', borderRadius: 8, padding: 24, marginBottom: 24 }}>
-                <div style={{ fontWeight: 500, marginBottom: 12 }}>父子分段</div>
-                <Form.Item name="parent_split_method" label="父块分段方式">
-                  <Radio.Group>
-                    <Radio value="off">关闭</Radio>
-                    <Radio value="on">开启</Radio>
-                  </Radio.Group>
-                </Form.Item>
-                {parentMode && (
-                  <>
-                    <Form.Item name="parent_separator" label="父块分段标识符">
-                      <Input style={{ width: 200 }} />
-                    </Form.Item>
-                    <Form.Item name="parent_chunk_size" label="父块分段最大长度">
-                      <InputNumber min={50} max={2000} style={{ width: 120 }} />
-                    </Form.Item>
-                    <Form.Item name="parent_chunk_overlap" label="父块分段重叠">
-                      <InputNumber min={0} max={200} />
-                    </Form.Item>
-                    <Form.Item name="child_separator" label="子块分段标识符">
-                      <Input style={{ width: 200 }} />
-                    </Form.Item>
-                    <Form.Item name="child_chunk_size" label="子块分段最大长度">
-                      <InputNumber min={50} max={2000} style={{ width: 120 }} />
-                    </Form.Item>
-                    <Form.Item name="child_chunk_overlap" label="子块分段重叠">
-                      <InputNumber min={0} max={100} />
-                    </Form.Item>
-                  </>
-                )}
-                <div style={{ color: '#888', fontSize: 13, marginTop: 8 }}>使用父子模式时，子块用于检索，父块用于上下文</div>
-              </div>
-              <div style={{ background: '#f7f8fa', borderRadius: 8, padding: 24, marginBottom: 24 }}>
-                <div style={{ fontWeight: 500, marginBottom: 12 }}>索引方式</div>
-                <Form.Item name="index_mode" label="索引方式">
-                  <Radio.Group>
-                    <Radio value="high">高质量（推荐）</Radio>
-                    <Radio value="eco">经济</Radio>
-                  </Radio.Group>
-                </Form.Item>
-                <div style={{ color: '#888', fontSize: 13, marginTop: 8 }}>高质量模式下嵌入入库，无法切换回经济模式。</div>
-              </div>
-              <div style={{ background: '#f7f8fa', borderRadius: 8, padding: 24 }}>
-                <div style={{ fontWeight: 500, marginBottom: 12 }}>Embedding 模型</div>
-                <Form.Item name="embedding_model" label="Embedding模型">
-                  <Select style={{ width: 260 }}>
-                    <Select.Option value="text-embedding-3-large">text-embedding-3-large</Select.Option>
-                    <Select.Option value="text-embedding-ada-002">text-embedding-ada-002</Select.Option>
-                  </Select>
-                </Form.Item>
+              <Tabs defaultActiveKey="1">
+                <TabPane tab="基础设置" key="1">
+                  <Collapse defaultActiveKey={['1', '2']}>
+                    <Panel header="文档加载设置" key="1">
+                      <Form.Item name="loader_type" label="文档类型">
+                        <Select>
+                          <Select.Option value="text">文本文件</Select.Option>
+                          <Select.Option value="pdf">PDF文件</Select.Option>
+                          <Select.Option value="docx">Word文件</Select.Option>
+                          <Select.Option value="markdown">Markdown文件</Select.Option>
+                        </Select>
+                      </Form.Item>
+                      <Form.Item name="encoding" label="文件编码">
+                        <Select>
+                          <Select.Option value="utf-8">UTF-8</Select.Option>
+                          <Select.Option value="gbk">GBK</Select.Option>
+                          <Select.Option value="gb2312">GB2312</Select.Option>
+                        </Select>
+                      </Form.Item>
+                    </Panel>
+
+                    <Panel header="文本分割设置" key="2">
+                      <Form.Item name="text_splitter" label="分割方式">
+                        <Select>
+                          <Select.Option value="recursive">递归分割</Select.Option>
+                          <Select.Option value="character">字符分割</Select.Option>
+                          <Select.Option value="token">Token分割</Select.Option>
+                        </Select>
+                      </Form.Item>
+                      <Form.Item name="chunk_size" label="块大小">
+                        <InputNumber min={100} max={2000} style={{ width: 200 }} addonAfter="字符" />
+                      </Form.Item>
+                      <Form.Item name="chunk_overlap" label="重叠大小">
+                        <InputNumber min={0} max={200} style={{ width: 200 }} addonAfter="字符" />
+                      </Form.Item>
+                      <Form.Item name="separators" label="分割符">
+                        <Select mode="tags" style={{ width: '100%' }} />
+                      </Form.Item>
+                    </Panel>
+
+                    <Panel header="文本清洗设置" key="3">
+                      <Form.Item name="clean_text" valuePropName="checked">
+                        <Checkbox>启用文本清洗</Checkbox>
+                      </Form.Item>
+                      <Form.Item name="remove_urls" valuePropName="checked">
+                        <Checkbox>移除URL</Checkbox>
+                      </Form.Item>
+                      <Form.Item name="remove_emails" valuePropName="checked">
+                        <Checkbox>移除邮箱</Checkbox>
+                      </Form.Item>
+                      <Form.Item name="remove_extra_whitespace" valuePropName="checked">
+                        <Checkbox>移除多余空白字符</Checkbox>
+                      </Form.Item>
+                      <Form.Item name="remove_special_chars" valuePropName="checked">
+                        <Checkbox>移除特殊字符</Checkbox>
+                      </Form.Item>
+                    </Panel>
+                  </Collapse>
+                </TabPane>
+
+                <TabPane tab="高级设置" key="2">
+                  <Collapse defaultActiveKey={['1']}>
+                    <Panel header="向量化设置" key="1">
+                      <Form.Item name="embedding_model" label="Embedding模型">
+                        <Select>
+                          <Select.Option value="text-embedding-3-large">text-embedding-3-large</Select.Option>
+                          <Select.Option value="text-embedding-ada-002">text-embedding-ada-002</Select.Option>
+                        </Select>
+                      </Form.Item>
+                      <Form.Item name="embedding_dimension" label="向量维度">
+                        <InputNumber disabled style={{ width: 200 }} />
+                      </Form.Item>
+                    </Panel>
+
+                    <Panel header="向量存储设置" key="2">
+                      <Form.Item name="vector_store" label="存储类型">
+                        <Select>
+                          <Select.Option value="chroma">Chroma</Select.Option>
+                          <Select.Option value="faiss">FAISS</Select.Option>
+                          <Select.Option value="pinecone">Pinecone</Select.Option>
+                        </Select>
+                      </Form.Item>
+                      <Form.Item name="similarity_metric" label="相似度计算方式">
+                        <Select>
+                          <Select.Option value="cosine">余弦相似度</Select.Option>
+                          <Select.Option value="euclidean">欧氏距离</Select.Option>
+                          <Select.Option value="dot">点积</Select.Option>
+                        </Select>
+                      </Form.Item>
+                    </Panel>
+
+                    <Panel header="检索设置" key="3">
+                      <Form.Item name="retrieval_strategy" label="检索策略">
+                        <Select>
+                          <Select.Option value="similarity">相似度检索</Select.Option>
+                          <Select.Option value="mmr">MMR多样性检索</Select.Option>
+                        </Select>
+                      </Form.Item>
+                      <Form.Item name="top_k" label="返回结果数量">
+                        <InputNumber min={1} max={10} style={{ width: 200 }} />
+                      </Form.Item>
+                      <Form.Item name="similarity_threshold" label="相似度阈值">
+                        <InputNumber min={0} max={1} step={0.1} style={{ width: 200 }} />
+                      </Form.Item>
+                    </Panel>
+
+                    <Panel header="元数据设置" key="4">
+                      <Form.Item name="use_metadata" valuePropName="checked">
+                        <Checkbox>启用元数据</Checkbox>
+                      </Form.Item>
+                      <Form.Item name="metadata_fields" label="元数据字段">
+                        <Select mode="multiple">
+                          <Select.Option value="source">来源</Select.Option>
+                          <Select.Option value="page">页码</Select.Option>
+                          <Select.Option value="chunk">块索引</Select.Option>
+                          <Select.Option value="timestamp">时间戳</Select.Option>
+                        </Select>
+                      </Form.Item>
+                    </Panel>
+                  </Collapse>
+                </TabPane>
+              </Tabs>
+
+              <div style={{ marginTop: 24, textAlign: 'center' }}>
+                <Space>
+                  <Button type="primary" icon={<EyeOutlined />} onClick={handlePreview}>
+                    预览效果
+                  </Button>
+                  <Button icon={<ReloadOutlined />} onClick={handleReset}>
+                    重置设置
+                  </Button>
+                </Space>
               </div>
             </Form>
           </div>
-          {/* 右侧文档预览 */}
+
+          {/* 右侧预览面板 */}
           <div style={{ flex: 1, minWidth: 320, background: '#f7f8fa', borderRadius: 8, padding: 24, minHeight: 480 }}>
-            <div style={{ fontWeight: 500, marginBottom: 16 }}>预览</div>
+            <div style={{ fontWeight: 500, marginBottom: 16 }}>预览效果</div>
             {previewData ? (
               <div style={{ maxHeight: 400, overflow: 'auto' }}>
                 {Array.isArray(previewData.chunks) && previewData.chunks.length > 0 ? (
-                  previewData.chunks[0].children ? (
-                    // 父子分段嵌套渲染
-                    previewData.chunks.map(chunk => (
-                      <div key={chunk.chunk_index} style={{ marginBottom: 16, border: '1px solid #eee', borderRadius: 8, padding: 12 }}>
-                        <b>Chunk-{chunk.chunk_index + 1} · {chunk.content.length} 字符</b>
-                        <div style={{ margin: '8px 0', color: '#888', fontSize: 13 }}>{chunk.content}</div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                          {chunk.children && chunk.children.map(child => (
-                            <span key={child.sub_index} style={{ background: '#f5f5f5', color: '#333', fontSize: 12, padding: '4px 8px', borderRadius: 6, marginBottom: 4, display: 'inline-block' }}>
-                              <b>c-{child.sub_index + 1}</b> {child.content}
+                  previewData.chunks.map((chunk, index) => (
+                    <div key={index} style={{ marginBottom: 16, border: '1px solid #eee', borderRadius: 8, padding: 12 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <b>块 {index + 1}</b>
+                        <span style={{ color: '#888' }}>{chunk.content.length} 字符</span>
+                      </div>
+                      <div style={{ color: '#333', fontSize: 13, whiteSpace: 'pre-wrap' }}>{chunk.content}</div>
+                      {chunk.metadata && (
+                        <div style={{ marginTop: 8, fontSize: 12, color: '#666' }}>
+                          {Object.entries(chunk.metadata).map(([key, value]) => (
+                            <span key={key} style={{ marginRight: 12 }}>
+                              {key}: {value}
                             </span>
                           ))}
                         </div>
-                      </div>
-                    ))
-                  ) : (
-                    // 通用分段平铺渲染
-                    previewData.chunks.map(chunk => (
-                      <div key={chunk.chunk_index} style={{ marginBottom: 16, border: '1px solid #eee', borderRadius: 8, padding: 12 }}>
-                        <b>Chunk-{chunk.chunk_index + 1} · {chunk.content.length} 字符</b>
-                        <div style={{ color: '#333', fontSize: 13 }}>{chunk.content}</div>
-                      </div>
-                    ))
-                  )
+                      )}
+                    </div>
+                  ))
                 ) : (
                   <div style={{ color: '#aaa', textAlign: 'center', marginTop: 120 }}>暂无分段预览</div>
                 )}
               </div>
             ) : file ? (
               <div style={{ color: '#aaa', textAlign: 'center', marginTop: 120 }}>
-                点击左侧的"预览块"按钮来加载预览
+                点击"预览效果"按钮查看分段结果
               </div>
             ) : (
               <div style={{ color: '#aaa', textAlign: 'center', marginTop: 120 }}>
