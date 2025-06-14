@@ -36,6 +36,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter, CharacterTex
 from langchain_community.embeddings import OpenAIEmbeddings, HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
 import openai
+from sentence_transformers import SentenceTransformer
 openai.api_key = getattr(settings, "OPENAI_API_KEY", os.environ.get("OPENAI_API_KEY"))
 
 logger = logging.getLogger(__name__)
@@ -599,46 +600,76 @@ class KnowledgeFileProcessView(APIView):
 
         # 4. 嵌入生成
         embedding_config = params.get('embedding_config', {})
-        embedding_model = embedding_config.get('model', 'text-embedding-3-large')
-        embedding_type = embedding_config.get('type', 'openai')
-        
+        embedding_model = embedding_config.get('model', 'sentence-transformers/all-MiniLM-L6-v2')
+        embedding_type = embedding_config.get('type', 'local')  # 默认使用本地模型
+
         # 获取用户的API密钥
         user = request.user
-        api_key = user.openai_api_key
-        if embedding_type == 'openai':
-            if not api_key:
-                # 查找 ModelApi 里的 openai 类型 key
-                from .models import ModelApi
-                model_api = ModelApi.objects.filter(model='openai').order_by('-time').first()
-                api_key = model_api.apikey if model_api else None
-            logger.info(f'[KnowledgeFileProcess] 当前用户: {user.username}, OpenAI API密钥: {api_key}')
-            if not api_key:
-                logger.error(f'[KnowledgeFileProcess] 用户 {user.username} 和全局都未设置OpenAI API密钥')
-                return Response({"error": "请先在个人设置或API管理中设置OpenAI API密钥"}, status=status.HTTP_400_BAD_REQUEST)
-            embedder = OpenAIEmbeddings(
-                model=embedding_model,
-                openai_api_key=api_key
-            )
-        elif embedding_type == 'deepseek':
-            api_key = user.deepseek_api_key
-            if not api_key:
-                from .models import ModelApi
-                model_api = ModelApi.objects.filter(model='deepseek').order_by('-time').first()
-                api_key = model_api.apikey if model_api else None
-            logger.info(f'[KnowledgeFileProcess] 当前用户: {user.username}, Deepseek API密钥: {api_key}')
-            if not api_key:
-                logger.error(f'[KnowledgeFileProcess] 用户 {user.username} 和全局都未设置Deepseek API密钥')
-                return Response({"error": "请先在个人设置或API管理中设置Deepseek API密钥"}, status=status.HTTP_400_BAD_REQUEST)
-            embedder = HuggingFaceEmbeddings(
-                model_name="deepseek-ai/deepseek-embed",
-                model_kwargs={'device': 'cpu'},
-                encode_kwargs={'normalize_embeddings': True}
-            )
-        else:
-            logger.error(f'[KnowledgeFileProcess] 不支持的嵌入模型类型: {embedding_type}')
-            return Response({"error": "不支持的嵌入模型类型"}, status=status.HTTP_400_BAD_REQUEST)
+        logger.info(f'[KnowledgeFileProcess] 当前用户: {user.username} 开始处理知识库文件')
+
+        # 根据配置选择向量化模型
+        try:
+            if embedding_type == 'local':
+                # 使用本地模型
+                model_name = embedding_model if embedding_model else "sentence-transformers/all-MiniLM-L6-v2"
+                embedder = HuggingFaceEmbeddings(
+                    model_name=model_name,
+                    model_kwargs={'device': 'cpu'},
+                    encode_kwargs={'normalize_embeddings': True}
+                )
+                logger.info(f'[KnowledgeFileProcess] 使用本地模型 {model_name} 进行向量化')
+            elif embedding_type == 'openai':
+                # 使用 OpenAI API
+                api_key = user.openai_api_key
+                if not api_key:
+                    # 查找 ModelApi 里的 openai 类型 key
+                    from .models import ModelApi
+                    model_api = ModelApi.objects.filter(model='openai').order_by('-time').first()
+                    api_key = model_api.apikey if model_api else None
+                logger.info(f'[KnowledgeFileProcess] 当前用户: {user.username}, OpenAI API密钥: {api_key}')
+                if not api_key:
+                    logger.error(f'[KnowledgeFileProcess] 用户 {user.username} 和全局都未设置OpenAI API密钥')
+                    return Response({"error": "请先在个人设置或API管理中设置OpenAI API密钥"}, status=status.HTTP_400_BAD_REQUEST)
+                embedder = OpenAIEmbeddings(
+                    model=embedding_model,
+                    openai_api_key=api_key
+                )
+            elif embedding_type == 'deepseek':
+                # 使用 Deepseek API
+                api_key = user.deepseek_api_key
+                if not api_key:
+                    from .models import ModelApi
+                    model_api = ModelApi.objects.filter(model='deepseek').order_by('-time').first()
+                    api_key = model_api.apikey if model_api else None
+                logger.info(f'[KnowledgeFileProcess] 当前用户: {user.username}, Deepseek API密钥: {api_key}')
+                if not api_key:
+                    logger.error(f'[KnowledgeFileProcess] 用户 {user.username} 和全局都未设置Deepseek API密钥')
+                    return Response({"error": "请先在个人设置或API管理中设置Deepseek API密钥"}, status=status.HTTP_400_BAD_REQUEST)
+                embedder = HuggingFaceEmbeddings(
+                    model_name="deepseek-ai/deepseek-embed",
+                    model_kwargs={'device': 'cpu'},
+                    encode_kwargs={'normalize_embeddings': True}
+                )
+            else:
+                logger.error(f'[KnowledgeFileProcess] 不支持的嵌入模型类型: {embedding_type}')
+                return Response({"error": "不支持的嵌入模型类型"}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error(f'[KnowledgeFileProcess] 初始化向量化模型失败: {str(e)}')
+            return Response({"error": f"初始化向量化模型失败: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         # 5. 向量存储
+        try:
+            # 生成嵌入向量
+            embeddings = embedder.embed_documents(chunks)
+        except Exception as e:
+            if 'RateLimitError' in str(e):
+                logger.error(f'[KnowledgeFileProcess] 用户 {user.username} 调用 API 被限流，请稍后重试或更换 API Key')
+                return Response({"error": "API 调用频率超限，请稍后重试或更换 API Key"}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+            else:
+                logger.error(f'[KnowledgeFileProcess] 生成嵌入向量失败: {str(e)}')
+                return Response({"error": f"生成嵌入向量失败: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # 6. 检索索引（Chroma自动支持）
         persist_directory = f"./chroma_db/{file_id}"
         os.makedirs(persist_directory, exist_ok=True)
         vectordb = Chroma.from_texts(
@@ -649,14 +680,11 @@ class KnowledgeFileProcessView(APIView):
         )
         vectordb.persist()
 
-        # 6. 检索索引（Chroma自动支持）
-        # 可根据 retrieval_config 设置不同的检索方式
-
         # 7. 返回结果
         result = {
             'file_id': file_id,
             'chunk_count': len(chunks),
-            'embedding_model': embedding_model,
+            'embedding_model': model_name,
             'embedding_type': embedding_type,
             'vector_store_path': persist_directory
         }

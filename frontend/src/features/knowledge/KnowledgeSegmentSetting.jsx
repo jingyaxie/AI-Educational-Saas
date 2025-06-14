@@ -208,15 +208,17 @@ const KnowledgeSegmentSetting = ({ onBack }) => {
                     <Panel header="向量化设置" key="1">
                       <Form.Item name="embedding_type" label="Embedding类型">
                         <Select>
+                          <Select.Option value="local">本地模型</Select.Option>
                           <Select.Option value="openai">OpenAI</Select.Option>
                           <Select.Option value="deepseek">Deepseek</Select.Option>
                         </Select>
                       </Form.Item>
                       <Form.Item name="embedding_model" label="Embedding模型">
                         <Select>
-                          <Select.Option value="text-embedding-3-large">text-embedding-3-large</Select.Option>
-                          <Select.Option value="text-embedding-ada-002">text-embedding-ada-002</Select.Option>
-                          <Select.Option value="deepseek-embed">deepseek-embed</Select.Option>
+                          <Select.Option value="sentence-transformers/all-MiniLM-L6-v2">all-MiniLM-L6-v2 (本地)</Select.Option>
+                          <Select.Option value="text-embedding-3-large">text-embedding-3-large (OpenAI)</Select.Option>
+                          <Select.Option value="text-embedding-ada-002">text-embedding-ada-002 (OpenAI)</Select.Option>
+                          <Select.Option value="deepseek-embed">deepseek-embed (Deepseek)</Select.Option>
                         </Select>
                       </Form.Item>
                       <Form.Item name="embedding_dimension" label="向量维度">
