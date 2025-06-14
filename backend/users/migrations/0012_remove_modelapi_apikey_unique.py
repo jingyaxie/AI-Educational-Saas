@@ -1,0 +1,16 @@
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ('users', '0011_user_deepseek_api_key_user_openai_api_key_and_more'),
+    ]
+
+    operations = [
+        migrations.AlterField(
+            model_name='modelapi',
+            name='apikey',
+            field=models.CharField(max_length=128, verbose_name='API-key'),
+        ),
+    ] 

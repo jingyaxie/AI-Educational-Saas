@@ -1,13 +1,62 @@
-import React, { useState } from 'react';
-import { Button, Steps, Upload } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Button, Steps, Upload, message, Select, Form } from 'antd';
 import { PlusOutlined, InboxOutlined, LeftOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import axios from '../../api';
 
 const { Dragger } = Upload;
+const { Option } = Select;
 
 const KnowledgeDataSource = ({ onBack }) => {
   const [fileList, setFileList] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const [knowledgeBases, setKnowledgeBases] = useState([]);
+  const [selectedKb, setSelectedKb] = useState(null);
   const navigate = useNavigate();
+
+  // 获取知识库列表
+  useEffect(() => {
+    const fetchKnowledgeBases = async () => {
+      try {
+        const res = await axios.get('/api/knowledgebases/');
+        setKnowledgeBases(res.data.results || res.data);
+        if (res.data.results?.length > 0 || res.data.length > 0) {
+          setSelectedKb(res.data.results?.[0]?.id || res.data[0].id);
+        }
+      } catch (err) {
+        console.error('获取知识库列表失败:', err);
+        message.error('获取知识库列表失败');
+      }
+    };
+    fetchKnowledgeBases();
+  }, []);
+
+  const handleUpload = (options) => {
+    const { file, onSuccess, onError } = options;
+    
+    if (!selectedKb) {
+      message.error('请先选择知识库');
+      onError(new Error('请先选择知识库'));
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('filename', file.name);
+    formData.append('kb', selectedKb);
+
+    axios.post('/api/knowledgefiles/', formData)
+      .then(res => {
+        message.success('上传成功');
+        onSuccess(res.data, file);
+        navigate('/dashboard/knowledge/segment', { state: { file: res.data } });
+      })
+      .catch(err => {
+        console.error('上传失败:', err);
+        message.error(err.response?.data?.detail || '上传失败');
+        onError(err);
+      });
+  };
 
   return (
     <div style={{ background: '#fff', borderRadius: 12, padding: 24, minHeight: 520, width: '100%', maxWidth: '100%', margin: 0 }}>
@@ -26,11 +75,27 @@ const KnowledgeDataSource = ({ onBack }) => {
         <Button disabled>同步自 Web 站点</Button>
       </div>
       <div style={{ marginBottom: 32 }}>
+        <Form layout="vertical">
+          <Form.Item label="选择知识库" required>
+            <Select
+              value={selectedKb}
+              onChange={setSelectedKb}
+              placeholder="请选择知识库"
+              style={{ width: '100%', marginBottom: 16 }}
+            >
+              {knowledgeBases.map(kb => (
+                <Option key={kb.id} value={kb.id}>{kb.name}</Option>
+              ))}
+            </Select>
+          </Form.Item>
+        </Form>
         <Dragger
-          beforeUpload={file => { setFileList([file]); return false; }}
+          customRequest={handleUpload}
           fileList={fileList}
-          accept={['.txt', '.md', '.pdf', '.doc', '.docx', '.xlsx', '.xls', '.csv'].join(',')}
+          accept={['.txt', '.md', '.pdf', '.doc', '.docx', '.xlsx', '.xls', '.csv', '.markdown', '.mdx', '.html', '.htm', '.vtt', '.properties', '.eml', '.msg', '.pptx', '.xml', '.epub', '.ppt'].join(',')}
           maxCount={1}
+          showUploadList={false}
+          disabled={uploading || !selectedKb}
         >
           <p className="ant-upload-drag-icon"><InboxOutlined /></p>
           <p className="ant-upload-text">拖拽文件或文件夹至此，或者 <span style={{ color: '#3b82f6' }}>选择文件</span></p>

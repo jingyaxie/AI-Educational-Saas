@@ -81,12 +81,46 @@ const KnowledgeSegmentSetting = ({ onBack }) => {
       const values = await form.validateFields();
       setLoading(true);
       const fileId = file.id || 1;
-      // 假设有API保存设置并处理
-      const res = await axios.post(`/api/knowledgebases/files/${fileId}/process/`, values);
-      // 跳转到已创建页面，传递 file 和 result
+      
+      // 按照后端期望的格式组织数据
+      const requestData = {
+        loader_config: {
+          encoding: values.encoding || 'utf-8'
+        },
+        clean_config: {
+          clean_text: values.clean_text,
+          remove_urls: values.remove_urls,
+          remove_emails: values.remove_emails,
+          remove_extra_whitespace: values.remove_extra_whitespace,
+          remove_special_chars: values.remove_special_chars
+        },
+        splitter_config: {
+          text_splitter: values.text_splitter,
+          chunk_size: values.chunk_size,
+          chunk_overlap: values.chunk_overlap,
+          separators: values.separators
+        },
+        embedding_config: {
+          model: values.embedding_model
+        },
+        vector_store_config: {
+          type: values.vector_store
+        },
+        retrieval_config: {
+          strategy: values.retrieval_strategy,
+          top_k: values.top_k,
+          similarity_threshold: values.similarity_threshold
+        },
+        metadata_config: {
+          fields: values.metadata_fields
+        }
+      };
+
+      const res = await axios.post(`/api/knowledgebases/files/${fileId}/process/`, requestData);
       navigate('/dashboard/knowledge/created', { state: { file, result: res.data } });
     } catch (e) {
-      message.error('保存并处理失败');
+      console.error('处理失败:', e);
+      message.error(e.response?.data?.error || '保存并处理失败');
     }
     setLoading(false);
   };
@@ -172,10 +206,17 @@ const KnowledgeSegmentSetting = ({ onBack }) => {
                 <TabPane tab="高级设置" key="2">
                   <Collapse defaultActiveKey={['1']}>
                     <Panel header="向量化设置" key="1">
+                      <Form.Item name="embedding_type" label="Embedding类型">
+                        <Select>
+                          <Select.Option value="openai">OpenAI</Select.Option>
+                          <Select.Option value="deepseek">Deepseek</Select.Option>
+                        </Select>
+                      </Form.Item>
                       <Form.Item name="embedding_model" label="Embedding模型">
                         <Select>
                           <Select.Option value="text-embedding-3-large">text-embedding-3-large</Select.Option>
                           <Select.Option value="text-embedding-ada-002">text-embedding-ada-002</Select.Option>
+                          <Select.Option value="deepseek-embed">deepseek-embed</Select.Option>
                         </Select>
                       </Form.Item>
                       <Form.Item name="embedding_dimension" label="向量维度">

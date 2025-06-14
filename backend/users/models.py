@@ -26,7 +26,9 @@ class User(AbstractUser):
     ], default='student', verbose_name='角色')
     valid_until = models.DateField(null=True, blank=True, verbose_name='有效期')
     token_usage = models.BigIntegerField(default=0, verbose_name='token用量')
-    api_key = models.CharField(max_length=128, blank=True, null=True, verbose_name='API-key')
+    api_key = models.CharField(max_length=64, blank=True, null=True, unique=True, verbose_name='API Key')
+    openai_api_key = models.CharField(max_length=128, blank=True, null=True, verbose_name='OpenAI API Key')
+    deepseek_api_key = models.CharField(max_length=128, blank=True, null=True, verbose_name='Deepseek API Key')
     # 其他字段继承自AbstractUser
 
     def __str__(self):
@@ -54,7 +56,7 @@ class ModelApi(models.Model):
         ('moonshot', 'Moonshot'),
     ]
     model = models.CharField(max_length=32, choices=MODEL_CHOICES, verbose_name='大模型')  # 大模型类型
-    apikey = models.CharField(max_length=128, unique=True, verbose_name='API-key')  # API密钥，唯一
+    apikey = models.CharField(max_length=256, verbose_name='API-key')  # API密钥
     usage = models.CharField(max_length=64, blank=True, null=True, verbose_name='token用量')  # token用量
     time = models.DateTimeField(auto_now_add=True, verbose_name='接入时间')  # 接入时间
     base_url = models.CharField(max_length=256, blank=True, null=True, verbose_name='Base URL')  # 新增

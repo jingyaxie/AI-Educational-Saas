@@ -3,8 +3,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
 from django.contrib.auth import authenticate, login
-from .models import User, UserGroup, Agent, ModelApi, TokenUsage, KnowledgeBase, Space, SpaceMember, SpaceDocument
-from .serializers import UserSerializer, UserGroupSerializer, AgentSerializer, ModelApiSerializer, TokenUsageSerializer, KnowledgeBaseSerializer, SpaceSerializer, SpaceMemberSerializer, SpaceDocumentSerializer
+from .models import User, UserGroup, Agent, ModelApi, TokenUsage, KnowledgeBase, Space, SpaceMember, SpaceDocument, KnowledgeFile
+from .serializers import UserSerializer, UserGroupSerializer, AgentSerializer, ModelApiSerializer, TokenUsageSerializer, KnowledgeBaseSerializer, SpaceSerializer, SpaceMemberSerializer, SpaceDocumentSerializer, KnowledgeFileSerializer
 from django.contrib.auth.decorators import login_required
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -24,10 +24,17 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework import serializers
 import traceback
 import os
+import pandas as pd
+from docx import Document
+import pdfplumber
+from pptx import Presentation
+from ebooklib import epub
+from bs4 import BeautifulSoup
+import markdown
 
 from langchain.text_splitter import RecursiveCharacterTextSplitter, CharacterTextSplitter, TokenTextSplitter
-from langchain.embeddings import OpenAIEmbeddings
-from langchain.vectorstores import Chroma
+from langchain_community.embeddings import OpenAIEmbeddings, HuggingFaceEmbeddings
+from langchain_community.vectorstores import Chroma
 import openai
 openai.api_key = getattr(settings, "OPENAI_API_KEY", os.environ.get("OPENAI_API_KEY"))
 
@@ -204,7 +211,14 @@ class ModelApiListCreateView(generics.ListCreateAPIView):
 
     def post(self, request, *args, **kwargs):
         logger.info(f'创建大模型API，请求数据: {request.data}')
-        return super().post(request, *args, **kwargs)
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            self.perform_create(serializer)
+            logger.info('创建大模型API成功')
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        else:
+            logger.error(f'创建大模型API失败，校验错误: {serializer.errors}')
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class ModelApiRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     """大模型API详情、更新、删除接口"""
@@ -478,16 +492,63 @@ class SpaceDocumentRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIVi
     def get_queryset(self):
         space_id = self.kwargs['space_id']
 
+def extract_text_from_file(file_path, ext, encoding='utf-8'):
+    ext = ext.lower()
+    if ext in ['.txt', '.vtt', '.properties']:
+        with open(file_path, 'r', encoding=encoding) as f:
+            return f.read()
+    elif ext in ['.md', '.markdown', '.mdx']:
+        with open(file_path, 'r', encoding=encoding) as f:
+            return markdown.markdown(f.read())
+    elif ext in ['.docx']:
+        doc = Document(file_path)
+        return '\n'.join([p.text for p in doc.paragraphs])
+    elif ext in ['.pdf']:
+        with pdfplumber.open(file_path) as pdf:
+            return '\n'.join(page.extract_text() or "" for page in pdf.pages)
+    elif ext in ['.csv']:
+        df = pd.read_csv(file_path)
+        return df.to_string(index=False)
+    elif ext in ['.xlsx', '.xls']:
+        df = pd.read_excel(file_path)
+        return df.to_string(index=False)
+    elif ext in ['.pptx', '.ppt']:
+        prs = Presentation(file_path)
+        text = []
+        for slide in prs.slides:
+            for shape in slide.shapes:
+                if hasattr(shape, "text"):
+                    text.append(shape.text)
+        return '\n'.join(text)
+    elif ext in ['.html', '.htm', '.xml']:
+        with open(file_path, 'r', encoding=encoding) as f:
+            soup = BeautifulSoup(f, 'html.parser')
+            return soup.get_text()
+    elif ext in ['.epub']:
+        book = epub.read_epub(file_path)
+        text = []
+        for item in book.get_items():
+            if item.get_type() == epub.ITEM_DOCUMENT:
+                soup = BeautifulSoup(item.get_content(), 'html.parser')
+                text.append(soup.get_text())
+        return '\n'.join(text)
+    else:
+        return "暂不支持该文件类型"
+
 class KnowledgeFileProcessView(APIView):
     def post(self, request, file_id):
         params = request.data
+        try:
+            kf = KnowledgeFile.objects.get(id=file_id)
+        except KnowledgeFile.DoesNotExist:
+            return Response({"error": "知识文件不存在"}, status=status.HTTP_404_NOT_FOUND)
 
-        # 1. 加载文件内容（假设文件已上传到 /data/knowledge_files/{file_id}.txt）
-        file_path = f"/data/knowledge_files/{file_id}.txt"
-        if not os.path.exists(file_path):
-            return Response({"error": "文件不存在"}, status=status.HTTP_404_NOT_FOUND)
-        with open(file_path, "r", encoding=params.get("loader_config", {}).get("encoding", "utf-8")) as f:
-            file_content = f.read()
+        file_path = kf.file.path
+        ext = os.path.splitext(file_path)[-1].lower()
+        encoding = params.get("loader_config", {}).get("encoding", "utf-8")
+        file_content = extract_text_from_file(file_path, ext, encoding)
+        if file_content == "暂不支持该文件类型":
+            return Response({"error": file_content}, status=status.HTTP_400_BAD_REQUEST)
 
         # 2. 文本清洗
         clean_config = params.get('clean_config', {})
@@ -539,10 +600,29 @@ class KnowledgeFileProcessView(APIView):
         # 4. 嵌入生成
         embedding_config = params.get('embedding_config', {})
         embedding_model = embedding_config.get('model', 'text-embedding-3-large')
-        embedder = OpenAIEmbeddings(model=embedding_model, openai_api_key=openai.api_key)
+        embedding_type = embedding_config.get('type', 'openai')
+        
+        # 获取用户的API密钥
+        user = request.user
+        if embedding_type == 'openai':
+            if not user.openai_api_key:
+                return Response({"error": "请先设置OpenAI API密钥"}, status=status.HTTP_400_BAD_REQUEST)
+            embedder = OpenAIEmbeddings(
+                model=embedding_model,
+                openai_api_key=user.openai_api_key
+            )
+        elif embedding_type == 'deepseek':
+            if not user.deepseek_api_key:
+                return Response({"error": "请先设置Deepseek API密钥"}, status=status.HTTP_400_BAD_REQUEST)
+            embedder = HuggingFaceEmbeddings(
+                model_name="deepseek-ai/deepseek-embed",
+                model_kwargs={'device': 'cpu'},
+                encode_kwargs={'normalize_embeddings': True}
+            )
+        else:
+            return Response({"error": "不支持的嵌入模型类型"}, status=status.HTTP_400_BAD_REQUEST)
 
         # 5. 向量存储
-        vector_store_config = params.get('vector_store_config', {})
         persist_directory = f"./chroma_db/{file_id}"
         os.makedirs(persist_directory, exist_ok=True)
         vectordb = Chroma.from_texts(
@@ -561,12 +641,17 @@ class KnowledgeFileProcessView(APIView):
             'file_id': file_id,
             'chunk_count': len(chunks),
             'embedding_model': embedding_model,
-            'vector_store': vector_store_config.get('type', 'chroma'),
-            'index_status': 'success',
-            'split_mode': split_method,
-            'chunk_size': chunk_size,
-            'preprocess_rule': '、'.join([k for k, v in clean_config.items() if v]),
-            'retrieval': params.get('retrieval_config', {}).get('strategy', 'similarity'),
-            'metadata_fields': params.get('metadata_config', {}).get('fields', []),
+            'embedding_type': embedding_type,
+            'vector_store_path': persist_directory
         }
-        return Response(result, status=status.HTTP_200_OK)
+        return Response(result)
+
+class KnowledgeFileUploadView(APIView):
+    parser_classes = (MultiPartParser, FormParser)
+
+    def post(self, request, *args, **kwargs):
+        serializer = KnowledgeFileSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

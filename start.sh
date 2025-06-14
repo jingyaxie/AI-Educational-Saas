@@ -116,6 +116,8 @@ start_backend() {
     sleep 5
     if ! curl -s http://localhost:8000 > /dev/null; then
         echo -e "${RED}错误: 后端服务启动失败${NC}"
+        echo -e "${YELLOW}后端日志（最近50行）：${NC}"
+        tail -n 50 backend.log
         exit 1
     fi
     
@@ -146,6 +148,8 @@ start_frontend() {
     sleep 10
     if ! curl -s http://localhost:3000 > /dev/null; then
         echo -e "${RED}错误: 前端服务启动失败${NC}"
+        echo -e "${YELLOW}前端日志（最近50行）：${NC}"
+        tail -n 50 frontend.log
         exit 1
     fi
     

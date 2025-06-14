@@ -195,12 +195,12 @@ const ApiManage = () => {
             <Input allowClear />
           </Form.Item>
           {/* 新增base_url配置 */}
-          <Form.Item name="base_url" label="Base URL" rules={[{ required: true, message: '请输入Base URL' }]}> 
-            <Input allowClear />
+          <Form.Item name="base_url" label="Base URL"> 
+            <Input allowClear placeholder="可选，留空则使用默认值" />
           </Form.Item>
           {/* 新增model_name配置 */}
-          <Form.Item name="model_name" label="Model Name" rules={[{ required: true, message: '请输入Model Name' }]}> 
-            <Input allowClear />
+          <Form.Item name="model_name" label="Model Name"> 
+            <Input allowClear placeholder="可选，留空则使用默认值" />
           </Form.Item>
           {/* token用量只读，不可编辑，表单中不显示 */}
         </Form>
