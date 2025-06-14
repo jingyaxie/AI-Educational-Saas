@@ -46,6 +46,16 @@ check_directories() {
     fi
 }
 
+# 加载环境变量
+load_env() {
+    if [ -f "backend/.env" ]; then
+        echo -e "${YELLOW}加载环境变量...${NC}"
+        export $(cat backend/.env | grep -v '^#' | xargs)
+    else
+        echo -e "${YELLOW}未找到 .env 文件，使用默认配置${NC}"
+    fi
+}
+
 # 启动后端
 start_backend() {
     echo -e "${YELLOW}启动后端服务...${NC}"
@@ -59,6 +69,9 @@ start_backend() {
     
     source venv/bin/activate
     
+    # 加载环境变量
+    load_env
+    
     # 检查依赖
     if [ ! -f "requirements.txt" ]; then
         echo -e "${RED}错误: 未找到 requirements.txt${NC}"
@@ -68,6 +81,32 @@ start_backend() {
     # 安装依赖
     echo -e "${YELLOW}安装后端依赖...${NC}"
     pip install -r requirements.txt
+
+    # 数据库迁移
+    echo -e "${YELLOW}执行数据库迁移...${NC}"
+    python manage.py makemigrations
+    python manage.py migrate
+
+    # 收集静态文件
+    echo -e "${YELLOW}收集静态文件...${NC}"
+    python manage.py collectstatic --noinput
+
+    # 创建超级用户（如果不存在）
+    if [ ! -f "superuser_created" ]; then
+        echo -e "${YELLOW}检查是否需要创建超级用户...${NC}"
+        if ! python manage.py shell -c "from django.contrib.auth import get_user_model; User = get_user_model(); User.objects.filter(is_superuser=True).exists()" | grep -q "True"; then
+            echo -e "${YELLOW}创建超级用户...${NC}"
+            DJANGO_SUPERUSER_USERNAME=${DJANGO_SUPERUSER_USERNAME:-"admin"}
+            DJANGO_SUPERUSER_EMAIL=${DJANGO_SUPERUSER_EMAIL:-"admin@example.com"}
+            DJANGO_SUPERUSER_PASSWORD=${DJANGO_SUPERUSER_PASSWORD:-"admin123"}
+            python manage.py createsuperuser --noinput --username "$DJANGO_SUPERUSER_USERNAME" --email "$DJANGO_SUPERUSER_EMAIL"
+            echo "from django.contrib.auth import get_user_model; User = get_user_model(); user = User.objects.get(username='$DJANGO_SUPERUSER_USERNAME'); user.set_password('$DJANGO_SUPERUSER_PASSWORD'); user.save()" | python manage.py shell
+            touch superuser_created
+            echo -e "${GREEN}超级用户创建成功！${NC}"
+            echo -e "用户名: ${GREEN}$DJANGO_SUPERUSER_USERNAME${NC}"
+            echo -e "密码: ${GREEN}$DJANGO_SUPERUSER_PASSWORD${NC}"
+        fi
+    fi
     
     # 启动服务
     nohup python3 manage.py runserver 0.0.0.0:8000 > backend.log 2>&1 &
