@@ -8,10 +8,13 @@ import GroupList from '../features/user/GroupList';
 import GroupManage from '../features/user/GroupManage';
 import TokenStats from '../features/setting/TokenStats';
 import ApiManage from '../features/setting/ApiManage';
-import KnowledgeManage from '../features/knowledge/KnowledgeManage';
+import KnowledgeHome from '../features/knowledge/KnowledgeHome';
+import KnowledgeDataSource from '../features/knowledge/KnowledgeDataSource';
+import KnowledgeSegmentSetting from '../features/knowledge/KnowledgeSegmentSetting';
 import ChatPanel from '../chat/ChatPanel';
 import axios from '../api';
 import { HomeOutlined, UserOutlined } from '@ant-design/icons';
+import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
 
 const menuList = [
   { key: 'home', label: '首页' },
@@ -138,6 +141,17 @@ const Dashboard = () => {
 
   // 渲染内容区
   const renderContent = () => {
+    const location = useLocation();
+    if (location.pathname.startsWith('/dashboard/knowledge')) {
+      return (
+        <Routes>
+          <Route path="knowledge" element={<KnowledgeHome />} />
+          <Route path="knowledge/create" element={<KnowledgeDataSource />} />
+          <Route path="knowledge/segment" element={<KnowledgeSegmentSetting />} />
+          <Route path="*" element={<Navigate to="knowledge" />} />
+        </Routes>
+      );
+    }
     if (selectedKey === 'chat') {
       return <ChatPanel />;
     }
@@ -163,7 +177,7 @@ const Dashboard = () => {
       return <ApiManage />;
     }
     if (selectedKey === 'knowledge-mgr') {
-      return <KnowledgeManage />;
+      return <KnowledgeHome />;
     }
     // 默认首页内容
     return (

@@ -6,7 +6,7 @@ import MemberList from './MemberList';
 import GroupManage from './GroupManage';
 import TokenStats from './TokenStats';
 import ApiManage from './ApiManage';
-import KnowledgeManage from './KnowledgeManage';
+import KnowledgeHome from './features/knowledge/KnowledgeHome';
 import ChatPanel from './chat/ChatPanel';
 
 const menuList = [
@@ -152,7 +152,7 @@ const Dashboard = () => {
       return <ApiManage />;
     }
     if (selectedKey === 'knowledge-mgr') {
-      return <KnowledgeManage />;
+      return <KnowledgeHome />;
     }
     // 默认首页内容
     return (
