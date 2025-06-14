@@ -604,22 +604,38 @@ class KnowledgeFileProcessView(APIView):
         
         # 获取用户的API密钥
         user = request.user
+        api_key = user.openai_api_key
         if embedding_type == 'openai':
-            if not user.openai_api_key:
-                return Response({"error": "请先设置OpenAI API密钥"}, status=status.HTTP_400_BAD_REQUEST)
+            if not api_key:
+                # 查找 ModelApi 里的 openai 类型 key
+                from .models import ModelApi
+                model_api = ModelApi.objects.filter(model='openai').order_by('-time').first()
+                api_key = model_api.apikey if model_api else None
+            logger.info(f'[KnowledgeFileProcess] 当前用户: {user.username}, OpenAI API密钥: {api_key}')
+            if not api_key:
+                logger.error(f'[KnowledgeFileProcess] 用户 {user.username} 和全局都未设置OpenAI API密钥')
+                return Response({"error": "请先在个人设置或API管理中设置OpenAI API密钥"}, status=status.HTTP_400_BAD_REQUEST)
             embedder = OpenAIEmbeddings(
                 model=embedding_model,
-                openai_api_key=user.openai_api_key
+                openai_api_key=api_key
             )
         elif embedding_type == 'deepseek':
-            if not user.deepseek_api_key:
-                return Response({"error": "请先设置Deepseek API密钥"}, status=status.HTTP_400_BAD_REQUEST)
+            api_key = user.deepseek_api_key
+            if not api_key:
+                from .models import ModelApi
+                model_api = ModelApi.objects.filter(model='deepseek').order_by('-time').first()
+                api_key = model_api.apikey if model_api else None
+            logger.info(f'[KnowledgeFileProcess] 当前用户: {user.username}, Deepseek API密钥: {api_key}')
+            if not api_key:
+                logger.error(f'[KnowledgeFileProcess] 用户 {user.username} 和全局都未设置Deepseek API密钥')
+                return Response({"error": "请先在个人设置或API管理中设置Deepseek API密钥"}, status=status.HTTP_400_BAD_REQUEST)
             embedder = HuggingFaceEmbeddings(
                 model_name="deepseek-ai/deepseek-embed",
                 model_kwargs={'device': 'cpu'},
                 encode_kwargs={'normalize_embeddings': True}
             )
         else:
+            logger.error(f'[KnowledgeFileProcess] 不支持的嵌入模型类型: {embedding_type}')
             return Response({"error": "不支持的嵌入模型类型"}, status=status.HTTP_400_BAD_REQUEST)
 
         # 5. 向量存储
