@@ -84,22 +84,22 @@ start_backend() {
 
     # 数据库迁移
     echo -e "${YELLOW}执行数据库迁移...${NC}"
-    python manage.py makemigrations
-    python manage.py migrate
+    python3 manage.py makemigrations
+    python3 manage.py migrate
 
     # 收集静态文件
     echo -e "${YELLOW}收集静态文件...${NC}"
-    python manage.py collectstatic --noinput
+    python3 manage.py collectstatic --noinput
 
     # 创建超级用户（如果不存在）
     if [ ! -f "superuser_created" ]; then
         echo -e "${YELLOW}检查是否需要创建超级用户...${NC}"
-        if ! python manage.py shell -c "from django.contrib.auth import get_user_model; User = get_user_model(); User.objects.filter(is_superuser=True).exists()" | grep -q "True"; then
+        if ! python3 manage.py shell -c "from django.contrib.auth import get_user_model; User = get_user_model(); User.objects.filter(is_superuser=True).exists()" | grep -q "True"; then
             echo -e "${YELLOW}创建超级用户...${NC}"
             DJANGO_SUPERUSER_USERNAME=${DJANGO_SUPERUSER_USERNAME:-"admin"}
             DJANGO_SUPERUSER_EMAIL=${DJANGO_SUPERUSER_EMAIL:-"admin@example.com"}
             DJANGO_SUPERUSER_PASSWORD=${DJANGO_SUPERUSER_PASSWORD:-"admin123"}
-            python manage.py createsuperuser --noinput --username "$DJANGO_SUPERUSER_USERNAME" --email "$DJANGO_SUPERUSER_EMAIL"
+            python3 manage.py createsuperuser --noinput --username "$DJANGO_SUPERUSER_USERNAME" --email "$DJANGO_SUPERUSER_EMAIL"
             echo "from django.contrib.auth import get_user_model; User = get_user_model(); user = User.objects.get(username='$DJANGO_SUPERUSER_USERNAME'); user.set_password('$DJANGO_SUPERUSER_PASSWORD'); user.save()" | python manage.py shell
             touch superuser_created
             echo -e "${GREEN}超级用户创建成功！${NC}"

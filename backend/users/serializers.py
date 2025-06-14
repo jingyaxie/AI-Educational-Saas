@@ -77,9 +77,10 @@ class KnowledgeBaseSerializer(serializers.ModelSerializer):
     files_count = serializers.IntegerField(source='files.count', read_only=True)
     char_count = serializers.SerializerMethodField()
     type = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    description = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     class Meta:
         model = KnowledgeBase
-        fields = ['id', 'name', 'type', 'created', 'files_count', 'char_count']
+        fields = ['id', 'name', 'type', 'description', 'created', 'files_count', 'char_count']
     def get_char_count(self, obj):
         return sum([getattr(f, 'char_count', 0) for f in obj.files.all()])
     def create(self, validated_data):

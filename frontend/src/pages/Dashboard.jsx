@@ -14,33 +14,34 @@ import KnowledgeSegmentSetting from '../features/knowledge/KnowledgeSegmentSetti
 import ChatPanel from '../chat/ChatPanel';
 import axios from '../api';
 import { HomeOutlined, UserOutlined } from '@ant-design/icons';
-import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
+import { Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom';
 
 const menuList = [
-  { key: 'home', label: '首页' },
-  { key: 'chat', label: '大模型对话' },
+  { key: 'home', label: '首页', path: '/dashboard/home' },
+  { key: 'chat', label: '大模型对话', path: '/dashboard/chat' },
   { key: 'cloud', label: '云空间', children: [
-    { key: 'doc', label: '文档列表' },
-    { key: 'space', label: '空间管理' },
+    { key: 'doc', label: '文档列表', path: '/dashboard/cloud/doc' },
+    { key: 'space', label: '空间管理', path: '/dashboard/cloud/space' },
   ]},
   { key: 'knowledge', label: '知识库', children: [
-    { key: 'knowledge-mgr', label: '知识库管理' },
+    { key: 'knowledge-mgr', label: '知识库管理', path: '/dashboard/knowledge' },
   ]},
   { key: 'agent', label: '智能体', children: [
-    { key: 'agent-mgr', label: '智能体管理' },
+    { key: 'agent-mgr', label: '智能体管理', path: '/dashboard/agent' },
   ]},
   { key: 'user', label: '用户管理', children: [
-    { key: 'member-list', label: '会员列表' },
-    { key: 'group-list', label: '用户组管理' },
+    { key: 'member-list', label: '会员列表', path: '/dashboard/user/member' },
+    { key: 'group-list', label: '用户组管理', path: '/dashboard/user/group' },
   ]},
   { key: 'setting', label: '设置', children: [
-    { key: 'token', label: 'token统计' },
-    { key: 'api', label: 'API接口管理' },
+    { key: 'token', label: 'token统计', path: '/dashboard/setting/token' },
+    { key: 'api', label: 'API接口管理', path: '/dashboard/setting/api' },
   ]},
 ];
 
 const Dashboard = () => {
-  const [selectedKey, setSelectedKey] = useState('home');
+  const navigate = useNavigate();
+  const location = useLocation();
   const [userInfo, setUserInfo] = useState({ username: '', real_name: '' });
 
   useEffect(() => {
@@ -57,12 +58,12 @@ const Dashboard = () => {
     return item.key;
   };
 
-  // 优化点击一级菜单时自动选中第一个子菜单
+  // 菜单点击跳转路由
   const handleMenuClick = (item) => {
-    if (item.children && item.children.length > 0) {
-      setSelectedKey(item.children[0].key);
-    } else {
-      setSelectedKey(item.key);
+    if (item.path) {
+      navigate(item.path);
+    } else if (item.children && item.children.length > 0) {
+      navigate(item.children[0].path);
     }
   };
 
@@ -103,28 +104,28 @@ const Dashboard = () => {
               fontWeight: 'bold',
               padding: '10px 32px',
               borderRadius: '0 20px 20px 0',
-              background: selectedKey === item.key ? 'linear-gradient(90deg, #e8f5e9 60%, #c8e6c9 100%)' : 'none',
-              color: selectedKey === item.key ? '#5a7d1a' : '#333',
+              background: location.pathname.startsWith(`/dashboard/${item.key}`) ? 'linear-gradient(90deg, #e8f5e9 60%, #c8e6c9 100%)' : 'none',
+              color: location.pathname.startsWith(`/dashboard/${item.key}`) ? '#5a7d1a' : '#333',
               cursor: 'pointer',
               transition: 'all 0.2s',
-              boxShadow: selectedKey === item.key ? '2px 2px 8px #e0e0e0' : 'none',
+              boxShadow: location.pathname.startsWith(`/dashboard/${item.key}`) ? '2px 2px 8px #e0e0e0' : 'none',
             }}
           >
             {item.label}
           </div>
-          {item.children && (selectedKey === item.key || item.children.some(child => child.key === selectedKey)) && (
+          {item.children && (location.pathname.startsWith(`/dashboard/${item.key}`) || item.children.some(child => location.pathname.startsWith(`/dashboard/${child.key}`))) && (
             <div style={{ marginLeft: 24, marginTop: 4 }}>
               {item.children.map(child => (
                 <div
                   key={child.key}
-                  onClick={e => { e.stopPropagation(); setSelectedKey(child.key); }}
+                  onClick={e => { e.stopPropagation(); navigate(child.path); }}
                   style={{
                     padding: '8px 16px',
                     borderRadius: 8,
                     margin: '4px 0',
-                    background: selectedKey === child.key ? '#e8f5e9' : 'none',
-                    color: selectedKey === child.key ? '#388e3c' : '#666',
-                    fontWeight: selectedKey === child.key ? 600 : 400,
+                    background: location.pathname.startsWith(`/dashboard/${child.key}`) ? '#e8f5e9' : 'none',
+                    color: location.pathname.startsWith(`/dashboard/${child.key}`) ? '#388e3c' : '#666',
+                    fontWeight: location.pathname.startsWith(`/dashboard/${child.key}`) ? 600 : 400,
                     cursor: 'pointer',
                     transition: 'all 0.2s',
                   }}
@@ -141,7 +142,6 @@ const Dashboard = () => {
 
   // 渲染内容区
   const renderContent = () => {
-    const location = useLocation();
     if (location.pathname.startsWith('/dashboard/knowledge')) {
       return (
         <Routes>
@@ -152,32 +152,29 @@ const Dashboard = () => {
         </Routes>
       );
     }
-    if (selectedKey === 'chat') {
+    if (location.pathname === '/dashboard/chat') {
       return <ChatPanel />;
     }
-    if (selectedKey === 'doc') {
+    if (location.pathname === '/dashboard/doc') {
       return <DocumentList />;
     }
-    if (selectedKey === 'space') {
+    if (location.pathname === '/dashboard/space') {
       return <SpaceManage />;
     }
-    if (selectedKey === 'agent-mgr') {
+    if (location.pathname === '/dashboard/agent') {
       return <AgentList />;
     }
-    if (selectedKey === 'member-list') {
+    if (location.pathname === '/dashboard/member-list') {
       return <MemberList />;
     }
-    if (selectedKey === 'group-list') {
+    if (location.pathname === '/dashboard/group-list') {
       return <GroupList />;
     }
-    if (selectedKey === 'token') {
+    if (location.pathname === '/dashboard/token') {
       return <TokenStats />;
     }
-    if (selectedKey === 'api') {
+    if (location.pathname === '/dashboard/api') {
       return <ApiManage />;
-    }
-    if (selectedKey === 'knowledge-mgr') {
-      return <KnowledgeHome />;
     }
     // 默认首页内容
     return (
@@ -243,7 +240,21 @@ const Dashboard = () => {
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         {renderMenu()}
         <div style={{ flex: 1, padding: 24, overflow: 'auto' }}>
-          {renderContent()}
+          <Routes>
+            <Route path="home" element={<HomeStats stats={stats} />} />
+            <Route path="knowledge" element={<KnowledgeHome />} />
+            <Route path="knowledge/create" element={<KnowledgeDataSource />} />
+            <Route path="knowledge/segment" element={<KnowledgeSegmentSetting />} />
+            <Route path="cloud/doc" element={<DocumentList />} />
+            <Route path="cloud/space" element={<SpaceManage />} />
+            <Route path="agent" element={<AgentList />} />
+            <Route path="user/member" element={<MemberList />} />
+            <Route path="user/group" element={<GroupList />} />
+            <Route path="setting/token" element={<TokenStats />} />
+            <Route path="setting/api" element={<ApiManage />} />
+            <Route path="chat" element={<ChatPanel />} />
+            <Route path="*" element={<Navigate to="home" />} />
+          </Routes>
         </div>
       </div>
     </div>

@@ -77,6 +77,7 @@ class TokenUsage(models.Model):
 class KnowledgeBase(models.Model):
     name = models.CharField(max_length=128, unique=True, verbose_name='知识库名称')
     type = models.CharField(max_length=16, choices=[('doc', '文档'), ('xls', '表格')], verbose_name='类型')
+    description = models.TextField(blank=True, null=True, verbose_name='描述')
     created = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
     def __str__(self):
         return self.name

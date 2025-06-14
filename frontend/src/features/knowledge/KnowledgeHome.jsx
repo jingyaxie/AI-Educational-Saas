@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Button, Modal, Form, Input, message, Popconfirm, Spin, Tooltip, Table } from 'antd';
+import { Card, Button, Modal, Form, Input, message, Popconfirm, Spin, Tooltip, Table, Select } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons';
 import axios from '../../api';
 import { useNavigate } from 'react-router-dom';
@@ -32,8 +32,13 @@ const KnowledgeHome = () => {
 
   const handleEdit = (kb) => {
     setEditing(kb);
-    form.setFieldsValue({ name: kb.name, description: kb.description });
     setModalOpen(true);
+    setTimeout(() => {
+      form.setFieldsValue({
+        name: kb.name || '',
+        description: kb.description || '',
+      });
+    }, 0);
   };
 
   const handleDelete = async (id) => {
@@ -66,8 +71,17 @@ const KnowledgeHome = () => {
   };
 
   const showCreateModal = () => {
-    navigate('/dashboard/knowledge/create');
+    setEditing(null);
+    form.setFieldsValue({ name: '', description: '' });
+    setModalOpen(true);
   };
+
+  function formatCharCount(num) {
+    if (num >= 10000) return (num / 10000).toFixed(1).replace(/\.0$/, '') + '万';
+    if (num >= 1000) return (num / 1000).toFixed(1).replace(/\.0$/, '') + '千';
+    if (num >= 100) return (num / 100).toFixed(1).replace(/\.0$/, '') + '百';
+    return num + '';
+  }
 
   return (
     <div style={{ background: '#fff', borderRadius: 12, padding: 24, minHeight: 520, width: '100%', maxWidth: '100%', margin: 0 }}>
@@ -94,7 +108,7 @@ const KnowledgeHome = () => {
           { title: '名称', dataIndex: 'name', key: 'name' },
           { title: '描述', dataIndex: 'description', key: 'description', ellipsis: true },
           { title: '文件数', dataIndex: 'files_count', key: 'files_count', width: 90 },
-          { title: '字符数', dataIndex: 'char_count', key: 'char_count', width: 110 },
+          { title: '字符数', dataIndex: 'char_count', key: 'char_count', width: 110, render: formatCharCount },
           { title: '创建时间', dataIndex: 'created', key: 'created', render: t => t && t.slice(0, 19).replace('T', ' ') },
           {
             title: '操作',
@@ -120,7 +134,11 @@ const KnowledgeHome = () => {
         onCancel={() => setModalOpen(false)}
         destroyOnClose
       >
-        <Form form={form} layout="vertical">
+        <Form
+          key={editing ? editing.id : 'new'}
+          form={form}
+          layout="vertical"
+        >
           <Form.Item name="name" label="知识库名称" rules={[{ required: true, message: '请输入名称' }]}> <Input maxLength={32} /> </Form.Item>
           <Form.Item name="description" label="简介"> <Input.TextArea maxLength={200} rows={3} /> </Form.Item>
         </Form>
