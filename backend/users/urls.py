@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import LoginView, UserInfoView, SetRoleView, CaptchaView, dashboard, MemberListView, MemberDetailView, UserGroupListView, UserGroupDetailView, AgentListCreateView, AgentRetrieveUpdateDestroyView, ModelApiListCreateView, ModelApiRetrieveUpdateDestroyView, refresh_usage, TokenUsageListCreateView, token_usage_stats, KnowledgeBaseListCreateView, KnowledgeBaseRetrieveUpdateDestroyView, SpaceListCreateView, SpaceRetrieveUpdateDestroyView, SpaceMemberListCreateView, SpaceMemberRetrieveUpdateDestroyView, SpaceDocumentListCreateView, SpaceDocumentRetrieveUpdateDestroyView
+from .views import LoginView, UserInfoView, SetRoleView, CaptchaView, dashboard, MemberListView, MemberDetailView, UserGroupListView, UserGroupDetailView, AgentListCreateView, AgentRetrieveUpdateDestroyView, ModelApiListCreateView, ModelApiRetrieveUpdateDestroyView, refresh_usage, TokenUsageListCreateView, token_usage_stats, KnowledgeBaseListCreateView, KnowledgeBaseRetrieveUpdateDestroyView, SpaceListCreateView, SpaceRetrieveUpdateDestroyView, SpaceMemberListCreateView, SpaceMemberRetrieveUpdateDestroyView, SpaceDocumentListCreateView, SpaceDocumentRetrieveUpdateDestroyView, KnowledgeFileProcessView
 
 urlpatterns = [
     path('login/', LoginView.as_view()),
@@ -26,4 +26,5 @@ urlpatterns = [
     path('spaces/<int:space_id>/members/<int:id>/', SpaceMemberRetrieveUpdateDestroyView.as_view(), name='space-member-detail'),
     path('spaces/<int:space_id>/documents/', SpaceDocumentListCreateView.as_view(), name='space-document-list'),
     path('spaces/<int:space_id>/documents/<int:id>/', SpaceDocumentRetrieveUpdateDestroyView.as_view(), name='space-document-detail'),
+    path('api/knowledgebases/files/<int:file_id>/process/', KnowledgeFileProcessView.as_view(), name='knowledge_file_process'),
 ] 

@@ -76,6 +76,21 @@ const KnowledgeSegmentSetting = ({ onBack }) => {
     setPreviewData(null);
   };
 
+  const handleSaveAndProcess = async () => {
+    try {
+      const values = await form.validateFields();
+      setLoading(true);
+      const fileId = file.id || 1;
+      // 假设有API保存设置并处理
+      const res = await axios.post(`/api/knowledgebases/files/${fileId}/process/`, values);
+      // 跳转到已创建页面，传递 file 和 result
+      navigate('/dashboard/knowledge/created', { state: { file, result: res.data } });
+    } catch (e) {
+      message.error('保存并处理失败');
+    }
+    setLoading(false);
+  };
+
   return (
     <div style={{ background: '#fff', borderRadius: 12, padding: 24, minHeight: 520, width: '100%', maxWidth: '100%', margin: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 24 }}>
@@ -224,6 +239,9 @@ const KnowledgeSegmentSetting = ({ onBack }) => {
                   </Button>
                   <Button icon={<ReloadOutlined />} onClick={handleReset}>
                     重置设置
+                  </Button>
+                  <Button type="primary" onClick={handleSaveAndProcess}>
+                    保存并处理
                   </Button>
                 </Space>
               </div>

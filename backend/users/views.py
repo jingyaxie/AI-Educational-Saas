@@ -23,6 +23,13 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework import serializers
 import traceback
+import os
+
+from langchain.text_splitter import RecursiveCharacterTextSplitter, CharacterTextSplitter, TokenTextSplitter
+from langchain.embeddings import OpenAIEmbeddings
+from langchain.vectorstores import Chroma
+import openai
+openai.api_key = getattr(settings, "OPENAI_API_KEY", os.environ.get("OPENAI_API_KEY"))
 
 logger = logging.getLogger(__name__)
 
@@ -470,3 +477,96 @@ class SpaceDocumentRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIVi
     lookup_field = 'id'
     def get_queryset(self):
         space_id = self.kwargs['space_id']
+
+class KnowledgeFileProcessView(APIView):
+    def post(self, request, file_id):
+        params = request.data
+
+        # 1. 加载文件内容（假设文件已上传到 /data/knowledge_files/{file_id}.txt）
+        file_path = f"/data/knowledge_files/{file_id}.txt"
+        if not os.path.exists(file_path):
+            return Response({"error": "文件不存在"}, status=status.HTTP_404_NOT_FOUND)
+        with open(file_path, "r", encoding=params.get("loader_config", {}).get("encoding", "utf-8")) as f:
+            file_content = f.read()
+
+        # 2. 文本清洗
+        clean_config = params.get('clean_config', {})
+        import re
+        if clean_config.get('clean_text'):
+            file_content = re.sub(r'[ \t\r\f\v]+', ' ', file_content)
+        if clean_config.get('remove_urls'):
+            file_content = re.sub(r'https?://\S+', '', file_content)
+        if clean_config.get('remove_emails'):
+            file_content = re.sub(r'\S+@\S+', '', file_content)
+        if clean_config.get('remove_extra_whitespace'):
+            file_content = ' '.join(file_content.split())
+        if clean_config.get('remove_special_chars'):
+            file_content = re.sub(r'[^\w\s]', '', file_content)
+
+        # 3. 文本分段
+        splitter_config = params.get('splitter_config', {})
+        split_method = splitter_config.get('text_splitter', 'recursive')
+        chunk_size = splitter_config.get('chunk_size', 1000)
+        chunk_overlap = splitter_config.get('chunk_overlap', 200)
+        separators = splitter_config.get('separators', ['\n\n'])
+
+        if split_method == "recursive":
+            splitter = RecursiveCharacterTextSplitter(
+                chunk_size=chunk_size,
+                chunk_overlap=chunk_overlap,
+                separators=separators
+            )
+        elif split_method == "character":
+            splitter = CharacterTextSplitter(
+                chunk_size=chunk_size,
+                chunk_overlap=chunk_overlap,
+                separator=separators[0] if separators else "\n"
+            )
+        elif split_method == "token":
+            splitter = TokenTextSplitter(
+                chunk_size=chunk_size,
+                chunk_overlap=chunk_overlap
+            )
+        else:
+            splitter = RecursiveCharacterTextSplitter(
+                chunk_size=chunk_size,
+                chunk_overlap=chunk_overlap,
+                separators=separators
+            )
+        docs = splitter.create_documents([file_content])
+        chunks = [doc.page_content for doc in docs]
+
+        # 4. 嵌入生成
+        embedding_config = params.get('embedding_config', {})
+        embedding_model = embedding_config.get('model', 'text-embedding-3-large')
+        embedder = OpenAIEmbeddings(model=embedding_model, openai_api_key=openai.api_key)
+
+        # 5. 向量存储
+        vector_store_config = params.get('vector_store_config', {})
+        persist_directory = f"./chroma_db/{file_id}"
+        os.makedirs(persist_directory, exist_ok=True)
+        vectordb = Chroma.from_texts(
+            texts=chunks,
+            embedding=embedder,
+            persist_directory=persist_directory,
+            metadatas=[{"file_id": file_id, "chunk_index": i} for i in range(len(chunks))]
+        )
+        vectordb.persist()
+
+        # 6. 检索索引（Chroma自动支持）
+        # 可根据 retrieval_config 设置不同的检索方式
+
+        # 7. 返回结果
+        result = {
+            'file_id': file_id,
+            'chunk_count': len(chunks),
+            'embedding_model': embedding_model,
+            'vector_store': vector_store_config.get('type', 'chroma'),
+            'index_status': 'success',
+            'split_mode': split_method,
+            'chunk_size': chunk_size,
+            'preprocess_rule': '、'.join([k for k, v in clean_config.items() if v]),
+            'retrieval': params.get('retrieval_config', {}).get('strategy', 'similarity'),
+            'metadata_fields': params.get('metadata_config', {}).get('fields', []),
+        }
+        return Response(result, status=status.HTTP_200_OK)
