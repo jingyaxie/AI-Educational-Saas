@@ -113,8 +113,8 @@ const KnowledgeHome = () => {
             key: 'action',
             render: (_, kb) => (
               <span>
-                <Button size="small" type="link" onClick={() => handleEdit(kb)}>编辑</Button>
-                <Popconfirm title="确定删除？" onConfirm={() => handleDelete(kb.id)}>
+                <Button size="small" type="link" onClick={e => { e.stopPropagation(); handleEdit(kb); }}>编辑</Button>
+                <Popconfirm title="确定删除？" onConfirm={e => { e.stopPropagation(); handleDelete(kb.id); }}>
                   <Button size="small" type="link" danger>删除</Button>
                 </Popconfirm>
               </span>
@@ -124,6 +124,15 @@ const KnowledgeHome = () => {
         dataSource={list.filter(kb => kb.name.includes(search))}
         pagination={false}
         style={{ background: '#fff', borderRadius: 8 }}
+        onRow={record => ({
+          onClick: () => goDetail(record.id),
+        })}
+        rowClassName={(record) => {
+          if (window.location.pathname.endsWith(`/knowledge/${record.id}`)) {
+            return 'ant-table-row-selected';
+          }
+          return '';
+        }}
       />
       <Modal
         title={editing ? '编辑知识库' : '新建知识库'}

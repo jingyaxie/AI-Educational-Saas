@@ -12,6 +12,7 @@ import KnowledgeHome from '../features/knowledge/KnowledgeHome';
 import KnowledgeDataSource from '../features/knowledge/KnowledgeDataSource';
 import KnowledgeSegmentSetting from '../features/knowledge/KnowledgeSegmentSetting';
 import ChatPanel from '../chat/ChatPanel';
+import KnowledgeDetail from '../features/knowledge/KnowledgeDetail';
 import axios from '../api';
 import { HomeOutlined, UserOutlined } from '@ant-design/icons';
 import { Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom';
@@ -148,6 +149,7 @@ const Dashboard = () => {
           <Route path="knowledge" element={<KnowledgeHome />} />
           <Route path="knowledge/create" element={<KnowledgeDataSource />} />
           <Route path="knowledge/segment" element={<KnowledgeSegmentSetting />} />
+          <Route path="knowledge/:id" element={<KnowledgeDetail />} />
           <Route path="*" element={<Navigate to="knowledge" />} />
         </Routes>
       );
@@ -245,6 +247,7 @@ const Dashboard = () => {
             <Route path="knowledge" element={<KnowledgeHome />} />
             <Route path="knowledge/create" element={<KnowledgeDataSource />} />
             <Route path="knowledge/segment" element={<KnowledgeSegmentSetting />} />
+            <Route path="knowledge/:id" element={<KnowledgeDetail />} />
             <Route path="cloud/doc" element={<DocumentList />} />
             <Route path="cloud/space" element={<SpaceManage />} />
             <Route path="agent" element={<AgentList />} />
