@@ -71,9 +71,7 @@ const KnowledgeHome = () => {
   };
 
   const showCreateModal = () => {
-    setEditing(null);
-    form.setFieldsValue({ name: '', description: '' });
-    setModalOpen(true);
+    navigate('/dashboard/knowledge/create');
   };
 
   function formatCharCount(num) {
