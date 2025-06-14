@@ -12,6 +12,8 @@ const KnowledgeHome = () => {
   const [form] = Form.useForm();
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
+  const [blankModalOpen, setBlankModalOpen] = useState(false);
+  const [blankForm] = Form.useForm();
 
   const fetchList = async () => {
     setLoading(true);
@@ -68,7 +70,7 @@ const KnowledgeHome = () => {
   };
 
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto', padding: 32 }}>
+    <div style={{ background: '#fff', borderRadius: 12, padding: 24, minHeight: 520, width: '100%', maxWidth: '100%', margin: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 24 }}>
         <Input
           placeholder="搜索知识库名称"
@@ -79,8 +81,11 @@ const KnowledgeHome = () => {
           style={{ width: 280, marginRight: 16 }}
         />
         <div style={{ flex: 1 }} />
-        <Button type="primary" icon={<PlusOutlined />} onClick={showCreateModal}>
+        <Button type="primary" icon={<PlusOutlined />} onClick={showCreateModal} style={{ marginRight: 12 }}>
           新建知识库
+        </Button>
+        <Button onClick={() => setBlankModalOpen(true)}>
+          空白知识库
         </Button>
       </div>
       <Table
@@ -88,6 +93,8 @@ const KnowledgeHome = () => {
         columns={[
           { title: '名称', dataIndex: 'name', key: 'name' },
           { title: '描述', dataIndex: 'description', key: 'description', ellipsis: true },
+          { title: '文件数', dataIndex: 'files_count', key: 'files_count', width: 90 },
+          { title: '字符数', dataIndex: 'char_count', key: 'char_count', width: 110 },
           { title: '创建时间', dataIndex: 'created', key: 'created', render: t => t && t.slice(0, 19).replace('T', ' ') },
           {
             title: '操作',
@@ -116,6 +123,33 @@ const KnowledgeHome = () => {
         <Form form={form} layout="vertical">
           <Form.Item name="name" label="知识库名称" rules={[{ required: true, message: '请输入名称' }]}> <Input maxLength={32} /> </Form.Item>
           <Form.Item name="description" label="简介"> <Input.TextArea maxLength={200} rows={3} /> </Form.Item>
+        </Form>
+      </Modal>
+      <Modal
+        open={blankModalOpen}
+        title="创建空白知识库"
+        onCancel={() => setBlankModalOpen(false)}
+        onOk={async () => {
+          try {
+            const values = await blankForm.validateFields();
+            await axios.post('/api/knowledgebases/', values);
+            setBlankModalOpen(false);
+            fetchList();
+            message.success('创建成功');
+          } catch {
+            message.error('创建失败');
+          }
+        }}
+        okText="创建"
+        cancelText="取消"
+      >
+        <Form form={blankForm} layout="vertical">
+          <Form.Item name="name" label="知识库名称" rules={[{ required: true, message: '请输入名称' }]}>
+            <Input maxLength={32} />
+          </Form.Item>
+          <Form.Item name="description" label="描述">
+            <Input.TextArea maxLength={128} rows={2} />
+          </Form.Item>
         </Form>
       </Modal>
     </div>
