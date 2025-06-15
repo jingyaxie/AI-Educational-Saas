@@ -81,6 +81,7 @@ class KnowledgeBase(models.Model):
     type = models.CharField(max_length=16, choices=[('doc', '文档'), ('xls', '表格')], verbose_name='类型')
     description = models.TextField(blank=True, null=True, verbose_name='描述')
     created = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    embedding_config = models.JSONField(default=dict, blank=True, null=True, verbose_name='分段与向量化配置')
     def __str__(self):
         return self.name
 

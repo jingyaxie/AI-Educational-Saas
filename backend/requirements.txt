@@ -22,3 +22,4 @@ numpy>=1.24.0
 # 安装命令：pip install torch transformers sentence-transformers --no-deps
 sentence-transformers==2.5.1
 protobuf==3.20.3
+psycopg2-binary

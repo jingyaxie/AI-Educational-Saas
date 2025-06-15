@@ -59,10 +59,23 @@ const EMBEDDING_MODEL_OPTIONS = {
 const KnowledgeSegmentSetting = ({ onBack }) => {
   const location = useLocation();
   const file = location.state?.file;
+  const kb = location.state?.kb;
   const [form] = Form.useForm();
   const [previewData, setPreviewData] = useState(null);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  // 优先用知识库 embedding_config 作为初始值
+  const initialValues = kb?.embedding_config ? {
+    ...defaultParams,
+    ...kb.embedding_config.loader_config,
+    ...kb.embedding_config.clean_config,
+    ...kb.embedding_config.splitter_config,
+    ...kb.embedding_config.embedding_config,
+    ...kb.embedding_config.vector_store_config,
+    ...kb.embedding_config.retrieval_config,
+    ...kb.embedding_config.metadata_config,
+  } : defaultParams;
 
   const embeddingType = Form.useWatch ? Form.useWatch('embedding_type', form) : form.getFieldValue('embedding_type');
   const embeddingModelOptions = EMBEDDING_MODEL_OPTIONS[embeddingType] || [];
@@ -155,7 +168,7 @@ const KnowledgeSegmentSetting = ({ onBack }) => {
         <div style={{ display: 'flex', gap: 32 }}>
           {/* 左侧设置面板 */}
           <div style={{ flex: 1, minWidth: 420 }}>
-            <Form form={form} layout="vertical" initialValues={defaultParams}>
+            <Form form={form} layout="vertical" initialValues={initialValues}>
               <Tabs defaultActiveKey="1">
                 <TabPane tab="基础设置" key="1">
                   <Collapse defaultActiveKey={['1', '2']}>

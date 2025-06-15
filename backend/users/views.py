@@ -439,6 +439,15 @@ class KnowledgeBaseListCreateView(generics.ListCreateAPIView):
     search_fields = ['name']
     ordering_fields = ['created']
 
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if not serializer.is_valid():
+            logger.error(f'KnowledgeBase create 400: {serializer.errors}')
+            return Response(serializer.errors, status=400)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=201, headers=headers)
+
 class KnowledgeBaseRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     queryset = KnowledgeBase.objects.all()
     serializer_class = KnowledgeBaseSerializer
@@ -544,6 +553,11 @@ class KnowledgeFileProcessView(APIView):
                 kf = KnowledgeFile.objects.get(id=file_id)
             except KnowledgeFile.DoesNotExist:
                 return Response({"error": "知识文件不存在"}, status=status.HTTP_404_NOT_FOUND)
+
+            # 保存本次分段/embedding参数到知识库
+            kb = kf.kb
+            kb.embedding_config = params
+            kb.save(update_fields=['embedding_config'])
 
             file_path = kf.file.path
             ext = os.path.splitext(file_path)[-1].lower()

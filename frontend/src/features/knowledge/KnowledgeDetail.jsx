@@ -98,7 +98,7 @@ const KnowledgeDetail = () => {
               onChange={e => setSearch(e.target.value)}
               style={{ width: 260, marginRight: 16 }}
             />
-            <Button type="primary" icon={<PlusOutlined />}>添加文件</Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/dashboard/knowledge/segment', { state: { kb } })}>添加文件</Button>
           </div>
         </div>
         {activeMenu === 'docs' && (
