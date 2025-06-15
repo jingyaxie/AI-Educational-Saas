@@ -43,7 +43,13 @@ const KnowledgeDataSource = ({ onBack }) => {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('filename', file.name);
-    formData.append('kb', selectedKb);
+    formData.append('kb_id', selectedKb);
+
+    console.log('上传数据:', {
+      file: file.name,
+      filename: file.name,
+      kb_id: selectedKb
+    });
 
     axios.post('/api/knowledgefiles/', formData)
       .then(res => {
@@ -53,7 +59,8 @@ const KnowledgeDataSource = ({ onBack }) => {
       })
       .catch(err => {
         console.error('上传失败:', err);
-        message.error(err.response?.data?.detail || '上传失败');
+        console.error('错误详情:', err.response?.data);
+        message.error(err.response?.data?.detail || err.response?.data?.error || '上传失败');
         onError(err);
       });
   };

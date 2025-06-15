@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Button, Modal, Form, Input, message, Popconfirm, Spin, Tooltip, Table, Select } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons';
+import { Card, Button, Modal, Form, Input, message, Popconfirm, Spin, Tooltip, Table, Select, Dropdown, Menu } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, EllipsisOutlined } from '@ant-design/icons';
 import axios from '../../api';
 import { useNavigate } from 'react-router-dom';
 
@@ -111,14 +111,25 @@ const KnowledgeHome = () => {
           {
             title: '操作',
             key: 'action',
-            render: (_, kb) => (
-              <span>
-                <Button size="small" type="link" onClick={e => { e.stopPropagation(); handleEdit(kb); }}>编辑</Button>
-                <Popconfirm title="确定删除？" onConfirm={e => { e.stopPropagation(); handleDelete(kb.id); }}>
-                  <Button size="small" type="link" danger>删除</Button>
-                </Popconfirm>
-              </span>
-            ),
+            render: (_, kb) => {
+              const menu = (
+                <Menu>
+                  <Menu.Item key="edit" icon={<EditOutlined />} onClick={e => { e.domEvent.stopPropagation(); handleEdit(kb); }}>
+                    编辑
+                  </Menu.Item>
+                  <Menu.Item key="delete" icon={<DeleteOutlined />} danger onClick={e => { e.domEvent.stopPropagation(); }}>
+                    <Popconfirm title="确定删除？" onConfirm={e => { e.stopPropagation(); handleDelete(kb.id); }} onClick={e => e.stopPropagation()}>
+                      删除
+                    </Popconfirm>
+                  </Menu.Item>
+                </Menu>
+              );
+              return (
+                <Dropdown overlay={menu} trigger={["click"]} onClick={e => e.stopPropagation()}>
+                  <Button size="small" type="link" icon={<EllipsisOutlined />} />
+                </Dropdown>
+              );
+            },
           },
         ]}
         dataSource={list.filter(kb => kb.name.includes(search))}

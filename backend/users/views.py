@@ -692,10 +692,18 @@ class KnowledgeFileProcessView(APIView):
 
 class KnowledgeFileUploadView(APIView):
     parser_classes = (MultiPartParser, FormParser)
+    permission_classes = [IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
+        logger.info(f'[KnowledgeFileUpload] 开始上传文件，请求数据: {request.data}')
         serializer = KnowledgeFileSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            try:
+                instance = serializer.save()
+                logger.info(f'[KnowledgeFileUpload] 文件上传成功: {instance.filename}')
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            except Exception as e:
+                logger.error(f'[KnowledgeFileUpload] 保存文件失败: {str(e)}')
+                return Response({"error": f"保存文件失败: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        logger.error(f'[KnowledgeFileUpload] 数据验证失败: {serializer.errors}')
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

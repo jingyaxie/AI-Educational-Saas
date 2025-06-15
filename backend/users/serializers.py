@@ -69,13 +69,15 @@ class TokenUsageSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(f'创建token记录失败: {str(e)}')
 
 class KnowledgeFileSerializer(serializers.ModelSerializer):
-    kb = serializers.PrimaryKeyRelatedField(queryset=KnowledgeBase.objects.all())
+    kb_id = serializers.PrimaryKeyRelatedField(queryset=KnowledgeBase.objects.all(), source='kb')
     
     class Meta:
         model = KnowledgeFile
-        fields = ['id', 'filename', 'file', 'created', 'kb']
+        fields = ['id', 'filename', 'file', 'created', 'kb_id']
         extra_kwargs = {
-            'kb': {'required': True}
+            'kb_id': {'required': True},
+            'filename': {'required': True},
+            'file': {'required': True}
         }
 
 class KnowledgeBaseSerializer(serializers.ModelSerializer):
