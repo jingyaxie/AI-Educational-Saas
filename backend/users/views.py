@@ -697,8 +697,9 @@ class KnowledgeFileUploadView(APIView):
 class KnowledgeFileListView(generics.ListAPIView):
     serializer_class = KnowledgeFileSerializer
     permission_classes = [IsAuthenticated]
-    filter_backends = [DjangoFilterBackend]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ['kb']
+    search_fields = ['filename']
 
     def get_queryset(self):
         return KnowledgeFile.objects.all().order_by('-created')
