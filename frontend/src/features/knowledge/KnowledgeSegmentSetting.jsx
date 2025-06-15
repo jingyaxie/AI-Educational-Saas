@@ -46,6 +46,16 @@ const defaultParams = {
   parent_chunk_overlap: 400,
 };
 
+const EMBEDDING_MODEL_OPTIONS = {
+  local: [
+    { value: 'sentence-transformers/all-MiniLM-L6-v2', label: 'all-MiniLM-L6-v2 (本地)' },
+  ],
+  openai: [
+    { value: 'text-embedding-3-large', label: 'text-embedding-3-large (OpenAI)' },
+    { value: 'text-embedding-ada-002', label: 'text-embedding-ada-002 (OpenAI)' },
+  ],
+};
+
 const KnowledgeSegmentSetting = ({ onBack }) => {
   const location = useLocation();
   const file = location.state?.file;
@@ -53,6 +63,9 @@ const KnowledgeSegmentSetting = ({ onBack }) => {
   const [previewData, setPreviewData] = useState(null);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  const embeddingType = Form.useWatch ? Form.useWatch('embedding_type', form) : form.getFieldValue('embedding_type');
+  const embeddingModelOptions = EMBEDDING_MODEL_OPTIONS[embeddingType] || [];
 
   const handlePreview = async () => {
     if (!file) {
@@ -206,19 +219,22 @@ const KnowledgeSegmentSetting = ({ onBack }) => {
                 <TabPane tab="高级设置" key="2">
                   <Collapse defaultActiveKey={['1']}>
                     <Panel header="向量化设置" key="1">
-                      <Form.Item name="embedding_type" label="Embedding类型">
-                        <Select>
+                      <Form.Item name="embedding_type" label="Embedding类型" initialValue="local">
+                        <Select
+                          onChange={val => {
+                            const opts = EMBEDDING_MODEL_OPTIONS[val] || [];
+                            form.setFieldsValue({ embedding_model: opts.length ? opts[0].value : undefined });
+                          }}
+                        >
                           <Select.Option value="local">本地模型</Select.Option>
                           <Select.Option value="openai">OpenAI</Select.Option>
-                          <Select.Option value="deepseek">Deepseek</Select.Option>
                         </Select>
                       </Form.Item>
-                      <Form.Item name="embedding_model" label="Embedding模型">
-                        <Select>
-                          <Select.Option value="sentence-transformers/all-MiniLM-L6-v2">all-MiniLM-L6-v2 (本地)</Select.Option>
-                          <Select.Option value="text-embedding-3-large">text-embedding-3-large (OpenAI)</Select.Option>
-                          <Select.Option value="text-embedding-ada-002">text-embedding-ada-002 (OpenAI)</Select.Option>
-                          <Select.Option value="deepseek-embed">deepseek-embed (Deepseek)</Select.Option>
+                      <Form.Item name="embedding_model" label="Embedding模型" rules={[{ required: true, message: '请选择Embedding模型' }]}>
+                        <Select placeholder="请选择Embedding模型">
+                          {embeddingModelOptions.map(opt => (
+                            <Select.Option key={opt.value} value={opt.value}>{opt.label}</Select.Option>
+                          ))}
                         </Select>
                       </Form.Item>
                       <Form.Item name="embedding_dimension" label="向量维度">

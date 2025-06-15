@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import LoginView, UserInfoView, SetRoleView, CaptchaView, dashboard, MemberListView, MemberDetailView, UserGroupListView, UserGroupDetailView, AgentListCreateView, AgentRetrieveUpdateDestroyView, ModelApiListCreateView, ModelApiRetrieveUpdateDestroyView, refresh_usage, TokenUsageListCreateView, token_usage_stats, KnowledgeBaseListCreateView, KnowledgeBaseRetrieveUpdateDestroyView, SpaceListCreateView, SpaceRetrieveUpdateDestroyView, SpaceMemberListCreateView, SpaceMemberRetrieveUpdateDestroyView, SpaceDocumentListCreateView, SpaceDocumentRetrieveUpdateDestroyView, KnowledgeFileProcessView, KnowledgeFileUploadView
+from .views import LoginView, UserInfoView, SetRoleView, CaptchaView, dashboard, MemberListView, MemberDetailView, UserGroupListView, UserGroupDetailView, AgentListCreateView, AgentRetrieveUpdateDestroyView, ModelApiListCreateView, ModelApiRetrieveUpdateDestroyView, refresh_usage, TokenUsageListCreateView, token_usage_stats, KnowledgeBaseListCreateView, KnowledgeBaseRetrieveUpdateDestroyView, SpaceListCreateView, SpaceRetrieveUpdateDestroyView, SpaceMemberListCreateView, SpaceMemberRetrieveUpdateDestroyView, SpaceDocumentListCreateView, SpaceDocumentRetrieveUpdateDestroyView, KnowledgeFileProcessView, KnowledgeFileListView, KnowledgeFileUploadView
 
 urlpatterns = [
     path('login/', LoginView.as_view()),
@@ -27,5 +27,6 @@ urlpatterns = [
     path('spaces/<int:space_id>/documents/', SpaceDocumentListCreateView.as_view(), name='space-document-list'),
     path('spaces/<int:space_id>/documents/<int:id>/', SpaceDocumentRetrieveUpdateDestroyView.as_view(), name='space-document-detail'),
     path('knowledgebases/files/<int:file_id>/process/', KnowledgeFileProcessView.as_view(), name='knowledge_file_process'),
-    path('knowledgefiles/', KnowledgeFileUploadView.as_view(), name='knowledgefile-upload'),
+    path('knowledgefiles/', KnowledgeFileListView.as_view(), name='knowledgefile-list'),
+    path('knowledgefiles/upload/', KnowledgeFileUploadView.as_view(), name='knowledgefile-upload'),
 ] 

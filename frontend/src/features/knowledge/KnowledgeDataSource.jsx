@@ -51,7 +51,7 @@ const KnowledgeDataSource = ({ onBack }) => {
       kb_id: selectedKb
     });
 
-    axios.post('/api/knowledgefiles/', formData)
+    axios.post('/api/knowledgefiles/upload/', formData)
       .then(res => {
         message.success('上传成功');
         onSuccess(res.data, file);

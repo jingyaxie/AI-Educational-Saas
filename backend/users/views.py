@@ -538,157 +538,158 @@ def extract_text_from_file(file_path, ext, encoding='utf-8'):
 
 class KnowledgeFileProcessView(APIView):
     def post(self, request, file_id):
-        params = request.data
         try:
-            kf = KnowledgeFile.objects.get(id=file_id)
-        except KnowledgeFile.DoesNotExist:
-            return Response({"error": "知识文件不存在"}, status=status.HTTP_404_NOT_FOUND)
+            params = request.data
+            try:
+                kf = KnowledgeFile.objects.get(id=file_id)
+            except KnowledgeFile.DoesNotExist:
+                return Response({"error": "知识文件不存在"}, status=status.HTTP_404_NOT_FOUND)
 
-        file_path = kf.file.path
-        ext = os.path.splitext(file_path)[-1].lower()
-        encoding = params.get("loader_config", {}).get("encoding", "utf-8")
-        file_content = extract_text_from_file(file_path, ext, encoding)
-        if file_content == "暂不支持该文件类型":
-            return Response({"error": file_content}, status=status.HTTP_400_BAD_REQUEST)
+            file_path = kf.file.path
+            ext = os.path.splitext(file_path)[-1].lower()
+            encoding = params.get("loader_config", {}).get("encoding", "utf-8")
+            try:
+                file_content = extract_text_from_file(file_path, ext, encoding)
+            except Exception as e:
+                logger.error(f'[KnowledgeFileProcess] 读取文件内容失败: {str(e)}')
+                return Response({"error": f"读取文件内容失败: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            if file_content == "暂不支持该文件类型":
+                return Response({"error": file_content}, status=status.HTTP_400_BAD_REQUEST)
 
-        # 2. 文本清洗
-        clean_config = params.get('clean_config', {})
-        import re
-        if clean_config.get('clean_text'):
-            file_content = re.sub(r'[ \t\r\f\v]+', ' ', file_content)
-        if clean_config.get('remove_urls'):
-            file_content = re.sub(r'https?://\S+', '', file_content)
-        if clean_config.get('remove_emails'):
-            file_content = re.sub(r'\S+@\S+', '', file_content)
-        if clean_config.get('remove_extra_whitespace'):
-            file_content = ' '.join(file_content.split())
-        if clean_config.get('remove_special_chars'):
-            file_content = re.sub(r'[^\w\s]', '', file_content)
+            # 2. 文本清洗
+            clean_config = params.get('clean_config', {})
+            import re
+            try:
+                if clean_config.get('clean_text'):
+                    file_content = re.sub(r'[ \t\r\f\v]+', ' ', file_content)
+                if clean_config.get('remove_urls'):
+                    file_content = re.sub(r'https?://\S+', '', file_content)
+                if clean_config.get('remove_emails'):
+                    file_content = re.sub(r'\S+@\S+', '', file_content)
+                if clean_config.get('remove_extra_whitespace'):
+                    file_content = ' '.join(file_content.split())
+                if clean_config.get('remove_special_chars'):
+                    file_content = re.sub(r'[^\w\s]', '', file_content)
+            except Exception as e:
+                logger.error(f'[KnowledgeFileProcess] 文本清洗失败: {str(e)}')
+                return Response({"error": f"文本清洗失败: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        # 3. 文本分段
-        splitter_config = params.get('splitter_config', {})
-        split_method = splitter_config.get('text_splitter', 'recursive')
-        chunk_size = splitter_config.get('chunk_size', 1000)
-        chunk_overlap = splitter_config.get('chunk_overlap', 200)
-        separators = splitter_config.get('separators', ['\n\n'])
+            # 3. 文本分段
+            splitter_config = params.get('splitter_config', {})
+            split_method = splitter_config.get('text_splitter', 'recursive')
+            chunk_size = splitter_config.get('chunk_size', 1000)
+            chunk_overlap = splitter_config.get('chunk_overlap', 200)
+            separators = splitter_config.get('separators', ['\n\n'])
 
-        if split_method == "recursive":
-            splitter = RecursiveCharacterTextSplitter(
-                chunk_size=chunk_size,
-                chunk_overlap=chunk_overlap,
-                separators=separators
-            )
-        elif split_method == "character":
-            splitter = CharacterTextSplitter(
-                chunk_size=chunk_size,
-                chunk_overlap=chunk_overlap,
-                separator=separators[0] if separators else "\n"
-            )
-        elif split_method == "token":
-            splitter = TokenTextSplitter(
-                chunk_size=chunk_size,
-                chunk_overlap=chunk_overlap
-            )
-        else:
-            splitter = RecursiveCharacterTextSplitter(
-                chunk_size=chunk_size,
-                chunk_overlap=chunk_overlap,
-                separators=separators
-            )
-        docs = splitter.create_documents([file_content])
-        chunks = [doc.page_content for doc in docs]
+            # 保存字符数
+            kf.char_count = len(file_content)
+            kf.save(update_fields=['char_count'])
 
-        # 4. 嵌入生成
-        embedding_config = params.get('embedding_config', {})
-        embedding_model = embedding_config.get('model', 'sentence-transformers/all-MiniLM-L6-v2')
-        embedding_type = embedding_config.get('type', 'local')  # 默认使用本地模型
+            try:
+                if split_method == "recursive":
+                    splitter = RecursiveCharacterTextSplitter(
+                        chunk_size=chunk_size,
+                        chunk_overlap=chunk_overlap,
+                        separators=separators
+                    )
+                elif split_method == "character":
+                    splitter = CharacterTextSplitter(
+                        chunk_size=chunk_size,
+                        chunk_overlap=chunk_overlap,
+                        separator=separators[0] if separators else "\n"
+                    )
+                elif split_method == "token":
+                    splitter = TokenTextSplitter(
+                        chunk_size=chunk_size,
+                        chunk_overlap=chunk_overlap
+                    )
+                else:
+                    splitter = RecursiveCharacterTextSplitter(
+                        chunk_size=chunk_size,
+                        chunk_overlap=chunk_overlap,
+                        separators=separators
+                    )
+                docs = splitter.create_documents([file_content])
+                chunks = [doc.page_content for doc in docs]
+            except Exception as e:
+                logger.error(f'[KnowledgeFileProcess] 文本分段失败: {str(e)}')
+                return Response({"error": f"文本分段失败: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        # 获取用户的API密钥
-        user = request.user
-        logger.info(f'[KnowledgeFileProcess] 当前用户: {user.username} 开始处理知识库文件')
+            # 4. 嵌入生成
+            embedding_config = params.get('embedding_config', {})
+            embedding_model = embedding_config.get('model', 'sentence-transformers/all-MiniLM-L6-v2')
+            embedding_type = embedding_config.get('type', 'local')  # 默认使用本地模型
 
-        # 根据配置选择向量化模型
-        try:
-            if embedding_type == 'local':
-                # 使用本地模型
-                model_name = embedding_model if embedding_model else "sentence-transformers/all-MiniLM-L6-v2"
-                embedder = HuggingFaceEmbeddings(
-                    model_name=model_name,
-                    model_kwargs={'device': 'cpu'},
-                    encode_kwargs={'normalize_embeddings': True}
-                )
-                logger.info(f'[KnowledgeFileProcess] 使用本地模型 {model_name} 进行向量化')
-            elif embedding_type == 'openai':
-                # 使用 OpenAI API
-                api_key = user.openai_api_key
-                if not api_key:
-                    # 查找 ModelApi 里的 openai 类型 key
+            user = request.user
+            logger.info(f'[KnowledgeFileProcess] 当前用户: {user.username} 开始处理知识库文件')
+
+            # 根据配置选择向量化模型
+            try:
+                if embedding_type == 'local':
+                    # 使用本地模型
+                    model_name = embedding_model if embedding_model else "sentence-transformers/all-MiniLM-L6-v2"
+                    embedder = HuggingFaceEmbeddings(
+                        model_name=model_name,
+                        model_kwargs={'device': 'cpu'},
+                        encode_kwargs={'normalize_embeddings': True}
+                    )
+                    logger.info(f'[KnowledgeFileProcess] 使用本地模型 {model_name} 进行向量化')
+                elif embedding_type == 'openai':
+                    # 使用 OpenAI API
+                    api_key = user.openai_api_key
                     from .models import ModelApi
                     model_api = ModelApi.objects.filter(model='openai').order_by('-time').first()
-                    api_key = model_api.apikey if model_api else None
-                logger.info(f'[KnowledgeFileProcess] 当前用户: {user.username}, OpenAI API密钥: {api_key}')
-                if not api_key:
-                    logger.error(f'[KnowledgeFileProcess] 用户 {user.username} 和全局都未设置OpenAI API密钥')
-                    return Response({"error": "请先在个人设置或API管理中设置OpenAI API密钥"}, status=status.HTTP_400_BAD_REQUEST)
-                embedder = OpenAIEmbeddings(
-                    model=embedding_model,
-                    openai_api_key=api_key
-                )
-            elif embedding_type == 'deepseek':
-                # 使用 Deepseek API
-                api_key = user.deepseek_api_key
-                if not api_key:
-                    from .models import ModelApi
-                    model_api = ModelApi.objects.filter(model='deepseek').order_by('-time').first()
-                    api_key = model_api.apikey if model_api else None
-                logger.info(f'[KnowledgeFileProcess] 当前用户: {user.username}, Deepseek API密钥: {api_key}')
-                if not api_key:
-                    logger.error(f'[KnowledgeFileProcess] 用户 {user.username} 和全局都未设置Deepseek API密钥')
-                    return Response({"error": "请先在个人设置或API管理中设置Deepseek API密钥"}, status=status.HTTP_400_BAD_REQUEST)
-                embedder = HuggingFaceEmbeddings(
-                    model_name="deepseek-ai/deepseek-embed",
-                    model_kwargs={'device': 'cpu'},
-                    encode_kwargs={'normalize_embeddings': True}
-                )
-            else:
-                logger.error(f'[KnowledgeFileProcess] 不支持的嵌入模型类型: {embedding_type}')
-                return Response({"error": "不支持的嵌入模型类型"}, status=status.HTTP_400_BAD_REQUEST)
+                    api_key = model_api.apikey if model_api else api_key
+                    logger.info(f'[KnowledgeFileProcess] 当前用户: {user.username}, OpenAI API密钥: {api_key}')
+                    if not api_key:
+                        logger.error(f'[KnowledgeFileProcess] 用户 {user.username} 和全局都未设置OpenAI API密钥')
+                        return Response({"error": "请先在个人设置或API管理中设置OpenAI API密钥"}, status=status.HTTP_400_BAD_REQUEST)
+                    embedder = OpenAIEmbeddings(
+                        model=embedding_model,
+                        openai_api_key=api_key
+                    )
+                else:
+                    logger.error(f'[KnowledgeFileProcess] 不支持的嵌入模型类型: {embedding_type}')
+                    return Response({"error": "不支持的嵌入模型类型"}, status=status.HTTP_400_BAD_REQUEST)
+            except Exception as e:
+                logger.error(f'[KnowledgeFileProcess] 初始化向量化模型失败: {str(e)}')
+                return Response({"error": f"初始化向量化模型失败: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+            # 5. 向量存储
+            try:
+                # 生成嵌入向量
+                embeddings = embedder.embed_documents(chunks)
+            except Exception as e:
+                if 'RateLimitError' in str(e):
+                    logger.error(f'[KnowledgeFileProcess] 用户 {user.username} 调用 API 被限流，请稍后重试或更换 API Key')
+                    return Response({"error": "API 调用频率超限，请稍后重试或更换 API Key"}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+                else:
+                    logger.error(f'[KnowledgeFileProcess] 生成嵌入向量失败: {str(e)}')
+                    return Response({"error": f"生成嵌入向量失败: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+            # 6. 检索索引（Chroma自动支持）
+            persist_directory = f"./chroma_db/{file_id}"
+            os.makedirs(persist_directory, exist_ok=True)
+            vectordb = Chroma.from_texts(
+                texts=chunks,
+                embedding=embedder,
+                persist_directory=persist_directory,
+                metadatas=[{"file_id": file_id, "chunk_index": i} for i in range(len(chunks))]
+            )
+            vectordb.persist()
+
+            # 7. 返回结果
+            result = {
+                'file_id': file_id,
+                'chunk_count': len(chunks),
+                'embedding_model': model_name,
+                'embedding_type': embedding_type,
+                'vector_store_path': persist_directory
+            }
+            return Response(result)
         except Exception as e:
-            logger.error(f'[KnowledgeFileProcess] 初始化向量化模型失败: {str(e)}')
-            return Response({"error": f"初始化向量化模型失败: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-        # 5. 向量存储
-        try:
-            # 生成嵌入向量
-            embeddings = embedder.embed_documents(chunks)
-        except Exception as e:
-            if 'RateLimitError' in str(e):
-                logger.error(f'[KnowledgeFileProcess] 用户 {user.username} 调用 API 被限流，请稍后重试或更换 API Key')
-                return Response({"error": "API 调用频率超限，请稍后重试或更换 API Key"}, status=status.HTTP_429_TOO_MANY_REQUESTS)
-            else:
-                logger.error(f'[KnowledgeFileProcess] 生成嵌入向量失败: {str(e)}')
-                return Response({"error": f"生成嵌入向量失败: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-        # 6. 检索索引（Chroma自动支持）
-        persist_directory = f"./chroma_db/{file_id}"
-        os.makedirs(persist_directory, exist_ok=True)
-        vectordb = Chroma.from_texts(
-            texts=chunks,
-            embedding=embedder,
-            persist_directory=persist_directory,
-            metadatas=[{"file_id": file_id, "chunk_index": i} for i in range(len(chunks))]
-        )
-        vectordb.persist()
-
-        # 7. 返回结果
-        result = {
-            'file_id': file_id,
-            'chunk_count': len(chunks),
-            'embedding_model': model_name,
-            'embedding_type': embedding_type,
-            'vector_store_path': persist_directory
-        }
-        return Response(result)
+            logger.error(f'[KnowledgeFileProcess] 未知错误: {str(e)}', exc_info=True)
+            return Response({"error": f"未知错误: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class KnowledgeFileUploadView(APIView):
     parser_classes = (MultiPartParser, FormParser)
@@ -707,3 +708,12 @@ class KnowledgeFileUploadView(APIView):
                 return Response({"error": f"保存文件失败: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         logger.error(f'[KnowledgeFileUpload] 数据验证失败: {serializer.errors}')
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class KnowledgeFileListView(generics.ListAPIView):
+    serializer_class = KnowledgeFileSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['kb']
+
+    def get_queryset(self):
+        return KnowledgeFile.objects.all().order_by('-created')

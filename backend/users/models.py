@@ -89,6 +89,7 @@ class KnowledgeFile(models.Model):
     filename = models.CharField(max_length=128, verbose_name='文件名')
     file = models.FileField(upload_to='knowledge/')
     created = models.DateTimeField(auto_now_add=True, verbose_name='上传时间')
+    char_count = models.IntegerField(default=0, verbose_name='字符数')
     def __str__(self):
         return self.filename
 
