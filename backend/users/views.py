@@ -573,6 +573,11 @@ class KnowledgeFileProcessView(APIView):
             # 2. 文本清洗
             clean_config = params.get('clean_config', {})
             import re
+
+            # 保存原始字符数
+            kf.char_count = len(file_content)
+            kf.save(update_fields=['char_count'])
+
             try:
                 if clean_config.get('clean_text'):
                     file_content = re.sub(r'[ \t\r\f\v]+', ' ', file_content)
@@ -594,40 +599,6 @@ class KnowledgeFileProcessView(APIView):
             chunk_size = splitter_config.get('chunk_size', 1000)
             chunk_overlap = splitter_config.get('chunk_overlap', 200)
             separators = splitter_config.get('separators', ['\n\n'])
-
-            # 保存字符数
-            kf.char_count = len(file_content)
-            kf.save(update_fields=['char_count'])
-
-            try:
-                if split_method == "recursive":
-                    splitter = RecursiveCharacterTextSplitter(
-                        chunk_size=chunk_size,
-                        chunk_overlap=chunk_overlap,
-                        separators=separators
-                    )
-                elif split_method == "character":
-                    splitter = CharacterTextSplitter(
-                        chunk_size=chunk_size,
-                        chunk_overlap=chunk_overlap,
-                        separator=separators[0] if separators else "\n"
-                    )
-                elif split_method == "token":
-                    splitter = TokenTextSplitter(
-                        chunk_size=chunk_size,
-                        chunk_overlap=chunk_overlap
-                    )
-                else:
-                    splitter = RecursiveCharacterTextSplitter(
-                        chunk_size=chunk_size,
-                        chunk_overlap=chunk_overlap,
-                        separators=separators
-                    )
-                docs = splitter.create_documents([file_content])
-                chunks = [doc.page_content for doc in docs]
-            except Exception as e:
-                logger.error(f'[KnowledgeFileProcess] 文本分段失败: {str(e)}')
-                return Response({"error": f"文本分段失败: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
             # 4. 嵌入生成
             embedding_config = params.get('embedding_config', {})
@@ -672,7 +643,7 @@ class KnowledgeFileProcessView(APIView):
             # 5. 向量存储
             try:
                 # 生成嵌入向量
-                embeddings = embedder.embed_documents(chunks)
+                embeddings = embedder.embed_documents(file_content)
             except Exception as e:
                 if 'RateLimitError' in str(e):
                     logger.error(f'[KnowledgeFileProcess] 用户 {user.username} 调用 API 被限流，请稍后重试或更换 API Key')
@@ -685,17 +656,17 @@ class KnowledgeFileProcessView(APIView):
             persist_directory = f"./chroma_db/{file_id}"
             os.makedirs(persist_directory, exist_ok=True)
             vectordb = Chroma.from_texts(
-                texts=chunks,
+                texts=file_content,
                 embedding=embedder,
                 persist_directory=persist_directory,
-                metadatas=[{"file_id": file_id, "chunk_index": i} for i in range(len(chunks))]
+                metadatas=[{"file_id": file_id, "chunk_index": i} for i in range(len(file_content))]
             )
             vectordb.persist()
 
             # 7. 返回结果
             result = {
                 'file_id': file_id,
-                'chunk_count': len(chunks),
+                'chunk_count': len(file_content),
                 'embedding_model': model_name,
                 'embedding_type': embedding_type,
                 'vector_store_path': persist_directory

@@ -26,7 +26,8 @@ const defaultParams = {
   remove_special_chars: false,
   
   // 向量化设置
-  embedding_model: 'text-embedding-3-large',
+  embedding_type: 'local',
+  embedding_model: 'sentence-transformers/all-MiniLM-L6-v2',
   embedding_dimension: 1536,
   
   // 向量存储设置
@@ -143,7 +144,7 @@ const KnowledgeSegmentSetting = ({ onBack }) => {
       };
 
       const res = await axios.post(`/api/knowledgebases/files/${fileId}/process/`, requestData);
-      navigate('/dashboard/knowledge/created', { state: { file, result: res.data } });
+      navigate(`/dashboard/knowledge/${file.kb || file.kb_id}`);
     } catch (e) {
       console.error('处理失败:', e);
       message.error(e.response?.data?.error || '保存并处理失败');

@@ -55,7 +55,12 @@ const KnowledgeDetail = () => {
     { title: '#', dataIndex: 'index', key: 'index', width: 60, render: (_, __, i) => i + 1 },
     { title: '名称', dataIndex: 'filename', key: 'filename', render: (text) => <span><FileWordOutlined style={{color:'#1890ff',marginRight:6}} />{text}</span> },
     { title: '分段模式', dataIndex: 'segment_mode', key: 'segment_mode', render: () => <Tag>通用</Tag> },
-    { title: '字符数', dataIndex: 'char_count', key: 'char_count', render: (v) => v ? (v >= 1000 ? (v/1000).toFixed(1)+'k' : v) : '-' },
+    { title: '字符数', dataIndex: 'char_count', key: 'char_count', render: (v) => {
+      if (!v && v !== 0) return '-';
+      if (v >= 10000) return (v/10000).toFixed(1).replace(/\.0$/, '') + '万';
+      if (v >= 1000) return (v/1000).toFixed(1).replace(/\.0$/, '') + 'k';
+      return v.toString();
+    }},
     { title: '召回次数', dataIndex: 'recall_count', key: 'recall_count', render: v => v || 0 },
     { title: '上传时间', dataIndex: 'created', key: 'created', render: t => t && t.slice(0, 19).replace('T', ' ') },
     { title: '状态', dataIndex: 'status', key: 'status', render: () => <Tag color="green">可用</Tag> },

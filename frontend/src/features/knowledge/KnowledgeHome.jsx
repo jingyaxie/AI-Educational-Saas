@@ -57,12 +57,15 @@ const KnowledgeHome = () => {
       if (editing) {
         await axios.put(`/api/knowledgebases/${editing.id}/`, values);
         message.success('编辑成功');
+        setModalOpen(false);
+        fetchList();
       } else {
-        await axios.post('/api/knowledgebases/', values);
+        const res = await axios.post('/api/knowledgebases/', values);
         message.success('创建成功');
+        setModalOpen(false);
+        fetchList();
+        navigate(`/dashboard/knowledge/${res.data.id}`);
       }
-      setModalOpen(false);
-      fetchList();
     } catch {}
   };
 

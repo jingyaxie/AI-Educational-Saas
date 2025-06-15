@@ -36,7 +36,7 @@ const KnowledgeCreated = () => {
               <Descriptions.Item label="检索设置">{result?.retrieval || '向量检索'}</Descriptions.Item>
             </Descriptions>
             <div style={{ marginTop: 24 }}>
-              <Button type="primary" onClick={() => navigate('/dashboard/knowledge')}>前往文档</Button>
+              <Button type="primary" onClick={() => navigate(`/dashboard/knowledge/${file.kb || file.kb_id}`)}>前往文档</Button>
             </div>
           </Card>
         </div>
@@ -46,7 +46,7 @@ const KnowledgeCreated = () => {
           <div style={{ color: '#555', fontSize: 15, marginBottom: 16 }}>
             当文档完成索引处理后，知识库即可集成至应用内作为上下文使用。你可以在提示词编辑和插件中找到上下文设置。你也可以创建成可独立使用的 ChatGPT 索引插件发布。
           </div>
-          <Button type="default" onClick={() => navigate('/dashboard/knowledge')}>返回知识库首页</Button>
+          <Button type="default" onClick={() => navigate(`/dashboard/knowledge/${file.kb || file.kb_id}`)}>返回知识库首页</Button>
         </div>
       </div>
     </div>

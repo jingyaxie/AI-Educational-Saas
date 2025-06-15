@@ -73,7 +73,7 @@ class KnowledgeFileSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = KnowledgeFile
-        fields = ['id', 'filename', 'file', 'created', 'kb_id']
+        fields = ['id', 'filename', 'file', 'created', 'kb_id', 'char_count']
         extra_kwargs = {
             'kb_id': {'required': True},
             'filename': {'required': True},
