@@ -7,16 +7,6 @@ echo "开始部署..."
 
 # 检查并安装必要的依赖
 echo "检查系统依赖..."
-if ! command -v node &> /dev/null; then
-    echo "安装 Node.js..."
-    # 使用 nvm 安装 Node.js
-    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
-    export NVM_DIR="$HOME/.nvm"
-    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-    nvm install 16
-    nvm use 16
-fi
-
 if ! command -v docker &> /dev/null; then
     echo "安装 Docker..."
     curl -fsSL https://get.docker.com | sh
@@ -60,13 +50,31 @@ mkdir -p /data/frontend_dist
 mkdir -p /data/static
 mkdir -p /data/media
 
-# 2. 构建前端
-echo "构建前端..."
-cd frontend
-npm install
-npm run build
-cp -r build/* /data/frontend_dist/
-cd ..
+# 2. 检查镜像版本
+echo "检查镜像版本..."
+if [ ! -f .last_commit_id ]; then
+    echo "错误：找不到 .last_commit_id 文件"
+    exit 1
+fi
+
+CURRENT_COMMIT=$(cat .last_commit_id)
+IMAGE_TAG="${IMAGE_NAME}:${CURRENT_COMMIT}"
+IMAGE_FILE="${IMAGE_NAME}-${CURRENT_COMMIT}.tar"
+
+# 检查镜像文件是否存在
+if [ ! -f "${IMAGE_FILE}" ]; then
+    echo "错误：找不到镜像文件 ${IMAGE_FILE}"
+    echo "请先运行 build_image.sh 构建镜像"
+    exit 1
+fi
+
+# 检查本地是否已有该版本的镜像
+if ! docker image inspect ${IMAGE_TAG} >/dev/null 2>&1; then
+    echo "加载新版本镜像..."
+    docker load < ${IMAGE_FILE}
+else
+    echo "使用已存在的镜像版本: ${IMAGE_TAG}"
+fi
 
 # 3. 设置 Nginx 配置
 echo "配置 Nginx..."
@@ -97,11 +105,15 @@ else
     exit 1
 fi
 
-# 4. 构建并启动 Docker 容器
-echo "构建并启动 Docker 容器..."
-docker compose up -d --build
+# 4. 启动 Docker 容器
+echo "启动 Docker 容器..."
+# 更新 docker-compose.yml 中的镜像标签
+sed -i "s|image: ${IMAGE_NAME}:.*|image: ${IMAGE_TAG}|" docker-compose.yml
+
+docker compose up -d
 
 echo "部署完成！"
+echo "当前部署版本: ${CURRENT_COMMIT}"
 echo "前端静态资源目录: /data/frontend_dist"
 echo "Django 静态目录: /data/static"
 echo "Django 媒体目录: /data/media"
