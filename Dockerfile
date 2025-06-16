@@ -1,19 +1,23 @@
 # ---- 构建前端 ----
 FROM node:18 AS frontend-build
 WORKDIR /app/frontend
-COPY frontend/package*.json ./
+# 优先COPY依赖文件，便于缓存利用
+COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm install
+# 再COPY源码，只有源码变动才会失效缓存
 COPY frontend ./
 RUN npm run build
 
 # ---- 构建后端 ----
 FROM python:3.10-slim AS backend-build
 WORKDIR /app/backend
+# 优先COPY依赖文件，便于缓存利用
 COPY backend/requirements.txt ./
 RUN python -m venv /opt/venv \
     && . /opt/venv/bin/activate \
     && pip install --upgrade pip \
     && pip install -r requirements.txt
+# 再COPY源码，只有源码变动才会失效缓存
 COPY backend ./
 
 # ---- 生产镜像 ----
