@@ -5,6 +5,48 @@ set -e
 
 echo "开始部署..."
 
+# 检查并安装必要的依赖
+echo "检查系统依赖..."
+if ! command -v node &> /dev/null; then
+    echo "安装 Node.js..."
+    # 使用 nvm 安装 Node.js
+    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
+    export NVM_DIR="$HOME/.nvm"
+    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+    nvm install 16
+    nvm use 16
+fi
+
+if ! command -v docker &> /dev/null; then
+    echo "安装 Docker..."
+    curl -fsSL https://get.docker.com | sh
+    systemctl start docker
+    systemctl enable docker
+fi
+
+if ! command -v docker-compose &> /dev/null; then
+    echo "安装 Docker Compose..."
+    curl -L "https://github.com/docker/compose/releases/download/v2.20.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+    chmod +x /usr/local/bin/docker-compose
+fi
+
+if ! command -v nginx &> /dev/null; then
+    echo "安装 Nginx..."
+    if [ -f /etc/redhat-release ]; then
+        # CentOS/RHEL
+        yum install -y epel-release
+        yum install -y nginx
+        systemctl start nginx
+        systemctl enable nginx
+    elif [ -f /etc/debian_version ]; then
+        # Debian/Ubuntu
+        apt-get update
+        apt-get install -y nginx
+        systemctl start nginx
+        systemctl enable nginx
+    fi
+fi
+
 IMAGE_NAME=ai-educational-saas
 CONTAINER_NAME=ai-educational-saas
 PORT=8000
