@@ -5,18 +5,9 @@ set -e
 
 echo "开始构建镜像..."
 
-# 获取 git commit ID
-COMMIT_ID=$(git rev-parse --short HEAD)
-if [ -z "$COMMIT_ID" ]; then
-    echo "错误：无法获取 git commit ID"
-    exit 1
-fi
-
-IMAGE_NAME="ai-educational-saas"
-IMAGE_TAG="${IMAGE_NAME}:${COMMIT_ID}"
-IMAGE_FILE="${IMAGE_NAME}-${COMMIT_ID}.tar"
-
-echo "当前 git commit ID: ${COMMIT_ID}"
+DATE_TAG=$(date +%Y%m%d-%H%M)
+IMAGE_NAME="ai-educational-saas:$DATE_TAG"
+TAR_NAME="ai-educational-saas-$DATE_TAG.tar"
 
 # 检查 Docker 是否支持多架构构建
 if ! docker buildx version &> /dev/null; then
@@ -46,19 +37,19 @@ docker buildx inspect --bootstrap
 # 构建并推送多架构镜像
 docker buildx build \
     --platform linux/amd64,linux/arm64 \
-    --tag ${IMAGE_TAG} \
+    --tag ${IMAGE_NAME} \
     --load \
     .
 
 # 3. 保存镜像到文件
 echo "保存镜像到文件..."
 # 只保存 amd64 架构的镜像（用于 CentOS 服务器）
-docker save ${IMAGE_TAG} > ${IMAGE_FILE}
+docker save ${IMAGE_NAME} > ${TAR_NAME}
 
-# 4. 保存 commit ID 到文件
-echo ${COMMIT_ID} > .last_commit_id
+# 4. 只保留最新的 tar 文件，删除旧的（可选）
+ls -t ai-educational-saas-*.tar | tail -n +2 | xargs rm -f || true
 
 echo "镜像构建完成！"
-echo "镜像已保存为: ${IMAGE_FILE}"
-echo "镜像标签: ${IMAGE_TAG}"
+echo "镜像已保存为: ${TAR_NAME}"
+echo "镜像标签: ${IMAGE_NAME}"
 echo "支持的架构: linux/amd64, linux/arm64" 

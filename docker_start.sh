@@ -50,70 +50,44 @@ mkdir -p /data/frontend_dist
 mkdir -p /data/static
 mkdir -p /data/media
 
-# 2. 检查镜像版本
-echo "检查镜像版本..."
-if [ ! -f .last_commit_id ]; then
-    echo "错误：找不到 .last_commit_id 文件"
-    exit 1
+# 2. 查找最新的 tar 文件
+LATEST_TAR=$(ls -t ai-educational-saas-*.tar | head -n1)
+if [ -z "$LATEST_TAR" ]; then
+  echo "[ERROR] 未找到镜像文件 ai-educational-saas-*.tar"
+  exit 1
 fi
 
-CURRENT_COMMIT=$(cat .last_commit_id)
-IMAGE_TAG="${IMAGE_NAME}:${CURRENT_COMMIT}"
-IMAGE_FILE="${IMAGE_NAME}-${CURRENT_COMMIT}.tar"
+# 3. 提取日期标签
+DATE_TAG=$(echo "$LATEST_TAR" | sed -E 's/ai-educational-saas-([0-9]{8}-[0-9]{4})\.tar/\1/')
+IMAGE_NAME="ai-educational-saas:$DATE_TAG"
 
-# 检查镜像文件是否存在
-if [ ! -f "${IMAGE_FILE}" ]; then
-    echo "错误：找不到镜像文件 ${IMAGE_FILE}"
-    echo "请先运行 build_image.sh 构建镜像"
-    exit 1
-fi
-
-# 检查本地是否已有该版本的镜像
-if ! docker image inspect ${IMAGE_TAG} >/dev/null 2>&1; then
-    echo "加载新版本镜像..."
-    docker load < ${IMAGE_FILE}
+# 4. 检查镜像是否已存在
+if ! docker images | grep -q "$IMAGE_NAME"; then
+  echo "[INFO] 加载镜像 $IMAGE_NAME ..."
+  docker load -i "$LATEST_TAR"
 else
-    echo "使用已存在的镜像版本: ${IMAGE_TAG}"
+  echo "[INFO] 镜像 $IMAGE_NAME 已存在，无需加载。"
 fi
 
-# 3. 设置 Nginx 配置
-echo "配置 Nginx..."
-# 备份现有配置
-if [ -f /etc/nginx/conf.d/your_project.conf ]; then
-    cp /etc/nginx/conf.d/your_project.conf /etc/nginx/conf.d/your_project.conf.backup
-fi
-
-# 检查 nginx.conf 是否存在
-if [ ! -f nginx.conf ]; then
-    echo "错误：nginx.conf 文件不存在！"
-    exit 1
-fi
-
-# 使用项目中的 nginx.conf
-cp nginx.conf /etc/nginx/conf.d/your_project.conf
-
-# 检查 Nginx 配置
-echo "检查 Nginx 配置..."
-nginx -t
-
-# 如果配置正确，重新加载 Nginx
-if [ $? -eq 0 ]; then
-    echo "Nginx 配置正确，重新加载..."
-    nginx -s reload
+# 5. 启动容器（如用 docker-compose）
+if [ -f docker-compose.yml ]; then
+  echo "[INFO] 使用 docker-compose 启动服务..."
+  IMAGE_TAG="$DATE_TAG" docker-compose up -d --remove-orphans
 else
-    echo "Nginx 配置有误，请检查错误信息"
-    exit 1
+  echo "[WARN] 未找到 docker-compose.yml，请手动启动容器。"
 fi
 
-# 4. 启动 Docker 容器
-echo "启动 Docker 容器..."
-# 更新 docker-compose.yml 中的镜像标签
-sed -i "s|image: ${IMAGE_NAME}:.*|image: ${IMAGE_TAG}|" docker-compose.yml
+# 6. 配置 Nginx（如有需要）
+if [ -f nginx.conf ]; then
+  echo "[INFO] 配置 Nginx..."
+  sudo cp nginx.conf /etc/nginx/conf.d/your_project.conf
+  sudo nginx -t && sudo systemctl reload nginx
+else
+  echo "[WARN] 未找到 nginx.conf，跳过 Nginx 配置。"
+fi
 
-docker compose up -d
-
-echo "部署完成！"
-echo "当前部署版本: ${CURRENT_COMMIT}"
+echo "[INFO] 部署完成，当前镜像: $IMAGE_NAME"
+echo "当前部署版本: $DATE_TAG"
 echo "前端静态资源目录: /data/frontend_dist"
 echo "Django 静态目录: /data/static"
 echo "Django 媒体目录: /data/media"
