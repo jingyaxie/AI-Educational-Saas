@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# 设置错误时退出
+set -e
+
+echo "开始部署..."
+
 IMAGE_NAME=ai-educational-saas
 CONTAINER_NAME=ai-educational-saas
 PORT=8000
@@ -7,45 +12,87 @@ NGINX_CONF=/etc/nginx/conf.d/your_project.conf
 PROJECT_ROOT=$(cd "$(dirname "$0")" && pwd)
 DOMAIN_OR_IP=${DOMAIN_OR_IP:-_}
 
-# 1. 创建静态资源目录
-sudo mkdir -p /data/static /data/media /data/frontend_dist
-sudo chown -R $(whoami):$(whoami) /data/static /data/media /data/frontend_dist
+# 1. 创建必要的目录
+echo "创建必要的目录..."
+mkdir -p /data/frontend_dist
+mkdir -p /data/static
+mkdir -p /data/media
 
-# 2. 确保 Nginx 配置目录存在
-sudo mkdir -p /etc/nginx/conf.d/
+# 2. 构建前端
+echo "构建前端..."
+cd frontend
+npm install
+npm run build
+cp -r build/* /data/frontend_dist/
+cd ..
 
-# 3. 拷贝 nginx.conf 并用 envsubst 替换 server_name（在项目根目录执行）
-cd "$PROJECT_ROOT"
-if command -v envsubst >/dev/null 2>&1; then
-  export DOMAIN_OR_IP
-  envsubst < nginx.conf | sudo tee $NGINX_CONF
+# 3. 设置 Nginx 配置
+echo "配置 Nginx..."
+# 备份现有配置
+if [ -f /etc/nginx/conf.d/your_project.conf ]; then
+    cp /etc/nginx/conf.d/your_project.conf /etc/nginx/conf.d/your_project.conf.backup
+fi
+
+# 创建新的 Nginx 配置
+cat > /etc/nginx/conf.d/your_project.conf << 'EOL'
+server {
+    listen 80;
+    server_name localhost;
+
+    location / {
+        root /usr/share/nginx/html;
+        try_files $uri $uri/ /index.html;
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+    }
+
+    location /api/ {
+        proxy_pass http://localhost:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+
+    location /static/ {
+        root /usr/share/nginx/html;
+        expires 30d;
+        add_header Cache-Control "public, no-transform";
+    }
+
+    location /media/ {
+        root /usr/share/nginx/html;
+        expires 30d;
+        add_header Cache-Control "public, no-transform";
+    }
+
+    error_page 404 /404.html;
+    error_page 500 502 503 504 /50x.html;
+    location = /50x.html {
+        root /usr/share/nginx/html;
+    }
+}
+EOL
+
+# 检查 Nginx 配置
+echo "检查 Nginx 配置..."
+nginx -t
+
+# 如果配置正确，重新加载 Nginx
+if [ $? -eq 0 ]; then
+    echo "Nginx 配置正确，重新加载..."
+    nginx -s reload
 else
-  echo "[警告] 未安装 envsubst，直接拷贝 nginx.conf，server_name 需手动修改。"
-  sudo cp nginx.conf $NGINX_CONF
+    echo "Nginx 配置有误，请检查错误信息"
+    exit 1
 fi
 
-# 4. 重载 Nginx
-sudo nginx -s reload
-
-# 5. 构建镜像
-echo "[1/3] 构建 Docker 镜像..."
-docker build -t $IMAGE_NAME .
-
-# 6. 停止并删除已存在的同名容器
-if [ $(docker ps -aq -f name=$CONTAINER_NAME) ]; then
-    echo "[2/3] 停止并删除已有容器..."
-    docker stop $CONTAINER_NAME 2>/dev/null || true
-    docker rm $CONTAINER_NAME 2>/dev/null || true
-fi
-
-# 7. 运行新容器，挂载静态资源和媒体目录
-echo "[3/3] 启动新容器..."
-docker run -d --name $CONTAINER_NAME \
-    -p $PORT:8000 \
-    -v /data/static:/app/backend/static \
-    -v /data/media:/app/backend/media \
-    -v /data/frontend_dist:/app/frontend_dist \
-    $IMAGE_NAME
+# 4. 构建并启动 Docker 容器
+echo "构建并启动 Docker 容器..."
+docker compose up -d --build
 
 echo "部署完成！"
 echo "前端静态资源目录: /data/frontend_dist"
