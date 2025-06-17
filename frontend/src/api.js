@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// 配置 axios 默认值
-axios.defaults.baseURL = 'http://localhost:8000';  // 设置基础 URL
+// 根据环境变量自动切换 baseURL
+axios.defaults.baseURL = process.env.REACT_APP_API_BASE_URL || '/api';
 axios.defaults.withCredentials = true;  // 允许跨域携带 cookie
 axios.defaults.headers.common['Content-Type'] = 'application/json';
 axios.defaults.headers.common['Accept'] = 'application/json';
