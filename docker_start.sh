@@ -115,7 +115,7 @@ else
   echo "[INFO] 未找到 docker-compose.yml，使用 docker run 启动单一容器..."
   docker rm -f ai-educational-saas || true
   docker run -d --name ai-educational-saas \
-    -p $HOST_PORT:80 -p 8000:8000 \
+    -p $HOST_PORT:80 \
     -v /data/frontend_dist:/app/frontend_dist \
     -v /data/static:/app/static \
     -v /data/media:/app/media \
