@@ -108,7 +108,14 @@ fi
 if [ -f nginx.conf ]; then
   echo "[INFO] 配置 Nginx..."
   sudo cp nginx.conf /etc/nginx/conf.d/your_project.conf
-  sudo nginx -t && sudo systemctl reload nginx
+  sudo nginx -t
+  if ! pgrep -x nginx > /dev/null; then
+    echo "[INFO] Nginx 未运行，自动启动..."
+    sudo systemctl start nginx
+  else
+    echo "[INFO] Nginx 已运行，重载配置..."
+    sudo systemctl reload nginx
+  fi
 else
   echo "[WARN] 未找到 nginx.conf，跳过 Nginx 配置。"
 fi
