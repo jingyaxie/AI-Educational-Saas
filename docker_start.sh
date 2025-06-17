@@ -71,10 +71,28 @@ fi
 
 # 5. 检查 80 端口是否被占用
 if sudo lsof -i:80 | grep LISTEN; then
-  echo "[WARN] 80 端口已被占用，将使用 8000:80 映射容器端口。"
+  echo "[WARN] 80 端口已被占用，将自动查找可用端口..."
   HOST_PORT=8000
+  # 自动释放8000及后续端口的占用进程
+  while sudo lsof -i:${HOST_PORT} | grep LISTEN; do
+    PID=$(sudo lsof -i:${HOST_PORT} | awk 'NR==2{print $2}')
+    if [ -n "$PID" ]; then
+      echo "[INFO] 端口 $HOST_PORT 被进程 $PID 占用，自动kill..."
+      sudo kill $PID
+      sleep 1
+    fi
+    HOST_PORT=$((HOST_PORT+1))
+  done
+  echo "[INFO] 选用宿主机端口: $HOST_PORT"
 else
   HOST_PORT=80
+fi
+
+# 清理所有exited的旧容器
+EXISTED_CONTAINERS=$(docker ps -a -q -f status=exited)
+if [ -n "$EXISTED_CONTAINERS" ]; then
+  echo "[INFO] 清理exited的旧容器..."
+  docker rm $EXISTED_CONTAINERS
 fi
 
 # 5. 自动同步前端构建产物到宿主机 /data/frontend_dist
