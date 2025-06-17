@@ -69,23 +69,30 @@ else
   echo "[INFO] 镜像 $IMAGE_NAME 已存在，无需加载。"
 fi
 
-# 5. 启动容器
+# 5. 检查 80 端口是否被占用
+if sudo lsof -i:80 | grep LISTEN; then
+  echo "[WARN] 80 端口已被占用，将使用 8000:80 映射容器端口。"
+  HOST_PORT=8000
+else
+  HOST_PORT=80
+fi
+
+# 6. 启动容器
 if [ -f docker-compose.yml ]; then
   echo "[INFO] 使用 docker-compose 启动服务..."
   IMAGE_TAG="$DATE_TAG" docker-compose up -d --remove-orphans
 else
   echo "[INFO] 未找到 docker-compose.yml，使用 docker run 启动单一容器..."
-  # 停止并删除同名容器（如已存在）
   docker rm -f ai-educational-saas || true
   docker run -d --name ai-educational-saas \
-    -p 80:80 -p 8000:8000 \
+    -p $HOST_PORT:80 -p 8000:8000 \
     -v /data/frontend_dist:/app/frontend_dist \
     -v /data/static:/app/static \
     -v /data/media:/app/media \
     $IMAGE_NAME
 fi
 
-# 6. 配置 Nginx（如有需要）
+# 7. 配置 Nginx（如有需要）
 if [ -f nginx.conf ]; then
   echo "[INFO] 配置 Nginx..."
   sudo cp nginx.conf /etc/nginx/conf.d/your_project.conf
@@ -99,4 +106,4 @@ echo "当前部署版本: $DATE_TAG"
 echo "前端静态资源目录: /data/frontend_dist"
 echo "Django 静态目录: /data/static"
 echo "Django 媒体目录: /data/media"
-echo "API地址: http://$DOMAIN_OR_IP:$PORT" 
+echo "API地址: http://$DOMAIN_OR_IP:$HOST_PORT/" 
