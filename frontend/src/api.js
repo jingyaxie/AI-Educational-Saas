@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // 根据环境变量自动切换 baseURL
-axios.defaults.baseURL = process.env.REACT_APP_API_BASE_URL || '/api';
+axios.defaults.baseURL = '';
 axios.defaults.withCredentials = true;  // 允许跨域携带 cookie
 axios.defaults.headers.common['Content-Type'] = 'application/json';
 axios.defaults.headers.common['Accept'] = 'application/json';
