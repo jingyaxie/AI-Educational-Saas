@@ -42,7 +42,7 @@ CONTAINER_NAME=ai-educational-saas
 PORT=8000
 NGINX_CONF=/etc/nginx/conf.d/your_project.conf
 PROJECT_ROOT=$(cd "$(dirname "$0")" && pwd)
-DOMAIN_OR_IP=${DOMAIN_OR_IP:-_}
+DOMAIN_OR_IP="8.217.235.103"  # 如有域名可写 yourdomain.com
 
 # 1. 创建必要的目录
 echo "创建必要的目录..."
