@@ -208,3 +208,6 @@ SIMPLE_JWT = {
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
 }
+
+# 让 Django 识别 Nginx 反代的 Host
+USE_X_FORWARDED_HOST = True
