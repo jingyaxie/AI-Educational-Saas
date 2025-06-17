@@ -69,12 +69,20 @@ else
   echo "[INFO] 镜像 $IMAGE_NAME 已存在，无需加载。"
 fi
 
-# 5. 启动容器（如用 docker-compose）
+# 5. 启动容器
 if [ -f docker-compose.yml ]; then
   echo "[INFO] 使用 docker-compose 启动服务..."
   IMAGE_TAG="$DATE_TAG" docker-compose up -d --remove-orphans
 else
-  echo "[WARN] 未找到 docker-compose.yml，请手动启动容器。"
+  echo "[INFO] 未找到 docker-compose.yml，使用 docker run 启动单一容器..."
+  # 停止并删除同名容器（如已存在）
+  docker rm -f ai-educational-saas || true
+  docker run -d --name ai-educational-saas \
+    -p 80:80 -p 8000:8000 \
+    -v /data/frontend_dist:/app/frontend_dist \
+    -v /data/static:/app/static \
+    -v /data/media:/app/media \
+    $IMAGE_NAME
 fi
 
 # 6. 配置 Nginx（如有需要）
