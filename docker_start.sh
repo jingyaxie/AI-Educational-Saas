@@ -77,6 +77,18 @@ else
   HOST_PORT=80
 fi
 
+# 5. 自动同步前端构建产物到宿主机 /data/frontend_dist
+if [ ! -f /data/frontend_dist/index.html ]; then
+  echo "[INFO] /data/frontend_dist/index.html 不存在，自动从镜像中提取..."
+  docker run --rm --name temp_copy $IMAGE_NAME \
+    sh -c "tar -C /app/frontend_dist -cf - ." > /tmp/frontend_dist.tar
+  mkdir -p /data/frontend_dist
+  tar -xf /tmp/frontend_dist.tar -C /data/frontend_dist
+  sudo chown -R nginx:nginx /data/frontend_dist
+  sudo chmod -R 755 /data/frontend_dist
+  echo "[INFO] 前端构建产物已同步到 /data/frontend_dist/"
+fi
+
 # 6. 启动容器
 if [ -f docker-compose.yml ]; then
   echo "[INFO] 使用 docker-compose 启动服务..."
