@@ -37,4 +37,4 @@ COPY --from=frontend-build /app/frontend/build ./frontend_dist
 EXPOSE 8000
 
 # 启动命令（gunicorn，生产推荐）
-CMD ["bash", "-c", "cd backend && python manage.py migrate && python manage.py collectstatic --noinput && gunicorn account_system.wsgi:application --bind 0.0.0.0:8000"] 
+CMD ["bash", "-c", "cd backend && python manage.py migrate && python manage.py collectstatic --noinput && gunicorn account_system.wsgi:application --bind 0.0.0.0:80"] 
