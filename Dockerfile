@@ -30,8 +30,10 @@ WORKDIR /app
 COPY --from=backend-build /opt/venv /opt/venv
 COPY --from=backend-build /app/backend ./backend
 
-# 拷贝前端构建产物到单独目录
+# 拷贝前端构建产物到单独目录（先清空，确保不会残留老文件）
+RUN rm -rf ./frontend_dist
 COPY --from=frontend-build /app/frontend/build ./frontend_dist
+COPY --from=frontend-build /app/frontend/build/. ./frontend_dist
 
 # 端口
 EXPOSE 8000

@@ -11,9 +11,10 @@ fi
 
 echo "[1/3] 开始前端构建..."
 cd frontend
+rm -rf build dist
 if [ ! -d node_modules ] || [ package.json -nt node_modules ] || [ package-lock.json -nt node_modules ]; then
   echo "依赖有变动，重新安装依赖..."
-  npm install
+  npm install --legacy-peer-deps
 else
   echo "依赖未变动，跳过 npm install"
 fi
