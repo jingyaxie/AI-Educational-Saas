@@ -96,13 +96,29 @@ if [ ! -f /data/frontend_dist/index.html ]; then
   echo "[INFO] 前端构建产物已同步到 /data/frontend_dist/"
 fi
 
+# 6. 启动容器前，先停掉并删除所有同名容器
+EXISTED_SAME_NAME_CONTAINERS=$(docker ps -a -q -f name=^/${CONTAINER_NAME}$)
+if [ -n "$EXISTED_SAME_NAME_CONTAINERS" ]; then
+  echo "[INFO] 停止并删除已有同名容器..."
+  docker stop $CONTAINER_NAME || true
+  docker rm $CONTAINER_NAME || true
+fi
+
+# 删除所有旧的 ai-educational-saas 镜像，只保留最新 tag
+ALL_IMAGES=$(docker images ai-educational-saas --format '{{.Repository}}:{{.Tag}} {{.ID}}' | grep -v "$IMAGE_NAME" | awk '{print $2}')
+if [ -n "$ALL_IMAGES" ]; then
+  echo "[INFO] 删除旧的 ai-educational-saas 镜像..."
+  for imgid in $ALL_IMAGES; do
+    docker rmi -f $imgid || true
+  done
+fi
+
 # 6. 启动容器
 if [ -f docker-compose.yml ]; then
   echo "[INFO] 使用 docker-compose 启动服务..."
   IMAGE_TAG="$DATE_TAG" docker-compose up -d --remove-orphans
 else
   echo "[INFO] 未找到 docker-compose.yml，使用 docker run 启动单一容器..."
-  docker rm -f ai-educational-saas || true
   docker run -d --name ai-educational-saas \
     -p $HOST_PORT:80 \
     -v /data/frontend_dist:/app/frontend_dist \

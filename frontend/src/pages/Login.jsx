@@ -9,7 +9,6 @@ const Login = () => {
   // 获取验证码
   const fetchCaptcha = async () => {
     const res = await axios.get('/api/captcha/');
-    console.log('验证码响应:', res.data);
     setCaptcha(res.data);
   };
 
@@ -21,27 +20,12 @@ const Login = () => {
   const onFinish = async (values) => {
     setLoading(true);
     try {
-      console.log('登录请求 URL:', '/api/login/');
-      console.log('登录请求方法:', 'POST');
-      console.log('开始登录请求，参数：', {
-        username: values.username,
-        password: values.password,
-        captcha_key: captcha.captcha_key,
-        captcha_value: values.captcha,
-      });
-      console.log('Axios 配置:', {
-        baseURL: axios.defaults.baseURL,
-        headers: axios.defaults.headers,
-      });
       const res = await axios.post('/api/login/', {
         username: values.username,
         password: values.password,
         captcha_key: captcha.captcha_key,
         captcha_value: values.captcha,
       });
-      console.log('登录响应：', res.data);
-      
-      // 使用 toast 显示登录成功消息
       message.success({
         content: '登录成功',
         duration: 2,
@@ -51,21 +35,11 @@ const Login = () => {
         icon: '🎉',
         className: 'custom-toast',
       });
-
-      // 延迟跳转，让用户看到成功提示
       setTimeout(() => {
         localStorage.setItem('token', res.data.access);
         window.location.href = '/dashboard';
       }, 1000);
     } catch (err) {
-      console.log('登录错误详情：', {
-        status: err.response?.status,
-        statusText: err.response?.statusText,
-        data: err.response?.data,
-        headers: err.response?.headers,
-        config: err.config,
-      });
-      console.log('登录错误：', err.response?.data || err.message);
       const errorMsg = err.response?.data?.error || err.response?.data?.detail || '登录失败';
       if (errorMsg.includes('验证码')) {
         message.error({

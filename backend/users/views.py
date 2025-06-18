@@ -35,7 +35,6 @@ class CaptchaView(APIView):
             print('开始生成验证码')
             new_captcha = CaptchaStore.generate_key()
             print(f'生成验证码 key: {new_captcha}')
-            # 优先用 X-Forwarded-Proto 和 Host，兼容本地和生产
             scheme = request.META.get('HTTP_X_FORWARDED_PROTO', request.scheme)
             host = request.META.get('HTTP_X_FORWARDED_HOST', request.get_host())
             image_url = f"{scheme}://{host}{reverse('captcha-image', kwargs={'key': new_captcha})}"
