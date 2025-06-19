@@ -131,7 +131,6 @@ else
   echo "[INFO] 未找到 docker-compose.yml，使用 docker run 启动单一容器..."
   docker run -d --name ai-educational-saas \
     -p $HOST_PORT:80 \
-    -v /data/frontend_dist:/app/frontend_dist \
     -v /data/static:/app/static \
     -v /data/media:/app/media \
     $IMAGE_NAME
