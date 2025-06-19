@@ -150,9 +150,50 @@ else
   echo "[WARN] 未找到 nginx.conf，跳过 Nginx 配置。"
 fi
 
+# 8. 创建默认管理员账号
+echo "[INFO] 检查并创建默认管理员账号..."
+sleep 5  # 等待容器完全启动
+
+# 检查容器是否正在运行
+if docker ps | grep -q "$CONTAINER_NAME"; then
+  echo "[INFO] 容器正在运行，开始创建默认管理员账号..."
+  
+  # 检查是否已存在 admin 用户
+  if docker exec "$CONTAINER_NAME" python manage.py shell -c "
+from users.models import User
+try:
+    admin_user = User.objects.get(username='admin')
+    print('admin 用户已存在')
+except User.DoesNotExist:
+    print('admin 用户不存在，开始创建...')
+    admin_user = User.objects.create_superuser(
+        username='admin',
+        email='admin@example.com',
+        password='admin123'
+    )
+    admin_user.role = 'sysadmin'
+    admin_user.save()
+    print('默认管理员账号创建成功！')
+    print('用户名: admin')
+    print('密码: admin123')
+    print('角色: 系统管理员')
+"; then
+    echo "[SUCCESS] 默认管理员账号处理完成"
+  else
+    echo "[WARN] 创建管理员账号时出现错误，请手动检查"
+  fi
+else
+  echo "[ERROR] 容器未正常运行，无法创建管理员账号"
+fi
+
 echo "[INFO] 部署完成，当前镜像: $IMAGE_NAME"
 echo "当前部署版本: $DATE_TAG"
 echo "前端静态资源目录: /data/frontend_dist"
 echo "Django 静态目录: /data/static"
 echo "Django 媒体目录: /data/media"
-echo "API地址: http://$DOMAIN_OR_IP:$HOST_PORT/" 
+echo "API地址: http://$DOMAIN_OR_IP:$HOST_PORT/"
+echo ""
+echo "默认管理员账号信息："
+echo "用户名: admin"
+echo "密码: admin123"
+echo "角色: 系统管理员" 
