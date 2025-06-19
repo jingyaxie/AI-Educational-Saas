@@ -45,14 +45,14 @@ PROJECT_ROOT=$(cd "$(dirname "$0")" && pwd)
 DOMAIN_OR_IP="8.217.235.103"  # 如有域名可写 yourdomain.com
 
 # 0. 强制重新构建前端，确保 build 目录为最新
-if [ -d frontend ]; then
-  echo "[INFO] 检测到前端目录，开始重新构建前端..."
-  cd frontend
-  rm -rf build dist
-  npm install --legacy-peer-deps
-  npm run build
-  cd ..
-fi
+# if [ -d frontend ]; then
+#   echo "[INFO] 检测到前端目录，开始重新构建前端..."
+#   cd frontend
+#   rm -rf build dist
+#   npm install --legacy-peer-deps
+#   npm run build
+#   cd ..
+# fi
 
 # 1. 创建必要的目录
 echo "创建必要的目录..."
