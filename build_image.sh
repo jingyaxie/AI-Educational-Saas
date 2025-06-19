@@ -40,6 +40,18 @@ ls -t ai-educational-saas-*.tar | tail -n +2 | xargs rm -f || true
 
 echo "[INFO] 只保留最新的镜像文件: $TAR_NAME"
 
+# 自动检测 build 目录和镜像内容是否一致
+BUILD_HASH=$(cat frontend/build/index.html | grep -o 'main\.[a-zA-Z0-9]*\.js' | head -n1)
+IMG_HASH=$(docker run --rm $IMAGE_NAME sh -c "cat /app/frontend_dist/index.html | grep -o 'main\\.[a-zA-Z0-9]*\\.js' | head -n1")
+
+if [ "$BUILD_HASH" = "$IMG_HASH" ]; then
+  echo "[检测通过] build 目录和镜像内容一致: $BUILD_HASH"
+else
+  echo "[检测失败] build 目录 main.js: $BUILD_HASH, 镜像内 main.js: $IMG_HASH"
+  echo "[警告] 镜像内容与本地 build 目录不一致，请检查 Dockerfile COPY 路径和 build 流程！"
+  exit 1
+fi
+
 echo "[完成] 镜像构建完成！"
 echo "镜像标签: ${IMAGE_NAME}"
 echo "支持的架构: linux/amd64, linux/arm64" 
