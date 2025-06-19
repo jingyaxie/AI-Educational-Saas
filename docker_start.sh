@@ -97,12 +97,12 @@ fi
 # 5. 自动同步前端构建产物到宿主机 /data/frontend_dist
 echo "[INFO] 正在从最新镜像同步前端产物到 /data/frontend_dist ..."
 rm -rf /data/frontend_dist
-mkdir -p /data/frontend_dist
+  mkdir -p /data/frontend_dist
 docker run --rm $IMAGE_NAME sh -c "tar -C /app/frontend_dist -cf - ." > /tmp/frontend_dist.tar
-tar -xf /tmp/frontend_dist.tar -C /data/frontend_dist
-sudo chown -R nginx:nginx /data/frontend_dist
-sudo chmod -R 755 /data/frontend_dist
-echo "[INFO] 前端构建产物已同步到 /data/frontend_dist/"
+  tar -xf /tmp/frontend_dist.tar -C /data/frontend_dist
+  sudo chown -R nginx:nginx /data/frontend_dist
+  sudo chmod -R 755 /data/frontend_dist
+  echo "[INFO] 前端构建产物已同步到 /data/frontend_dist/"
 
 # 6. 启动容器前，先停掉并删除所有同名容器
 EXISTED_SAME_NAME_CONTAINERS=$(docker ps -a -q -f name=^/${CONTAINER_NAME}$)
